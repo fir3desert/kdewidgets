@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/2.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/2.0
+                          http://www.kde.org/standards/kcfg/2.0/kcfg.xsd">
+    <kcfgfile name=""/>
+    <group name="general">
+        <entry name="autoUpdate" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="updateInterval" type="Int">
+            <default>1</default>
+            <min>1</min>
+            <max>30</max>
+        </entry>
+        <entry name="showPublicIp" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="showIpv6" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="autoInterface" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="specificInterface" type="String">
+            <default></default>
+        </entry>
+        <entry name="publicIpTimeout" type="Int">
+            <default>5000</default>
+        </entry>
+        <entry name="publicIpV4Endpoints" type="StringList">
+            <default>https://api.ipify.org,https://ifconfig.me</default>
+        </entry>
+        <entry name="publicIpV6Endpoints" type="StringList">
+            <default>https://api6.ipify.org,https://ifconfig.me</default>
+        </entry>
+    </group>
+</kcfg>
