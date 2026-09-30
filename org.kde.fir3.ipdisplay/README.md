@@ -169,7 +169,7 @@ NetworkManager over D-Bus for status and VPN changes.
 
 ## License
 
-Copyright © 2026 Fir3
+Copyright © 2026 fir3desert
 
 This project is licensed under the **GNU General Public License
 version 3 or later (GPL-3.0-or-later)**.
