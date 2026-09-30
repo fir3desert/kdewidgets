@@ -171,18 +171,15 @@ NetworkManager over D-Bus for status and VPN changes.
 
 Copyright © 2026 Fir3
 
-This project is licensed under the GNU General Public License
-version 3 or later (GPL-3.0-or-later).
+This project is licensed under the **GNU General Public License
+version 3 or later (GPL-3.0-or-later)**.
+
+You are free to use, study, modify, and redistribute this software
+under the terms of the GNU GPL v3 or later.
+
+When redistributing this software or a modified version, you must
+preserve the applicable original copyright and license notices and
+clearly indicate any modifications made to the original work.
 
 See [LICENSE](LICENSE) for the full license text.
 
-## Copyright
-
-IP Display is original work by **Fir3**.
-
-You are free to use, study, modify, and redistribute this software
-under the terms of the GNU General Public License v3 or later.
-
-When redistributing this software or a derivative work, please
-preserve the original copyright notices and clearly indicate
-modifications made to the original work.
