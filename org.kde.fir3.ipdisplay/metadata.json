@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "IP Display Widget",
+                "Creator": "fir3desert"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Display system IP addresses in the panel with an interactive popup",
+        "Icon": "network-wireless",
+        "Id": "org.kde.fir3.ipdisplay",
+        "License": "GPL-3.0+",
+        "Name": "IP Display",
+        "Version": "1.0.0",
+        "Website": "https://github.com/fir3desert/kdewidgets"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
