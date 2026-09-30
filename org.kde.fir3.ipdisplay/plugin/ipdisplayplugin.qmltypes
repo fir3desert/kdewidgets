@@ -1,0 +1,156 @@
+import QtQuick.tooling 1.2
+
+Module {
+    Component {
+        file: "networkinfo.h"
+        name: "NetworkInfo"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["org.kde.plasma.ipdisplay/NetworkInfo 1.0"]
+        isCreatable: false
+        isSingleton: true
+        exportMetaObjectRevisions: [256]
+        Enum {
+            name: "Status"
+            isScoped: true
+            values: ["Online", "NoPublicIp", "Offline"]
+        }
+        Property {
+            name: "localIpv4"
+            type: "QString"
+            read: "localIpv4"
+            notify: "localIpChanged"
+        }
+        Property {
+            name: "localIpv6"
+            type: "QString"
+            read: "localIpv6"
+            notify: "localIpChanged"
+        }
+        Property {
+            name: "publicIpv4"
+            type: "QString"
+            read: "publicIpv4"
+            notify: "publicIpChanged"
+        }
+        Property {
+            name: "publicIpv6"
+            type: "QString"
+            read: "publicIpv6"
+            notify: "publicIpChanged"
+        }
+        Property {
+            name: "interfaceName"
+            type: "QString"
+            read: "interfaceName"
+            notify: "interfaceChanged"
+        }
+        Property {
+            name: "gateway"
+            type: "QString"
+            read: "gateway"
+            notify: "gatewayChanged"
+        }
+        Property {
+            name: "dnsList"
+            type: "QVariant"
+            read: "dnsList"
+            notify: "dnsChanged"
+        }
+        Property {
+            name: "vpnActive"
+            type: "bool"
+            read: "vpnActive"
+            notify: "vpnChanged"
+        }
+        Property {
+            name: "vpnIp"
+            type: "QString"
+            read: "vpnIp"
+            notify: "vpnChanged"
+        }
+        Property {
+            name: "vpnIfaceName"
+            type: "QString"
+            read: "vpnIfaceName"
+            notify: "vpnChanged"
+        }
+        Property {
+            name: "status"
+            type: "int"
+            read: "status"
+            notify: "statusChanged"
+        }
+        Property {
+            name: "rxBytes"
+            type: "qulonglong"
+            read: "rxBytes"
+            notify: "statsChanged"
+        }
+        Property {
+            name: "txBytes"
+            type: "qulonglong"
+            read: "txBytes"
+            notify: "statsChanged"
+        }
+        Property {
+            name: "ssid"
+            type: "QString"
+            read: "ssid"
+            notify: "interfaceChanged"
+        }
+        Property {
+            name: "macAddress"
+            type: "QString"
+            read: "macAddress"
+            notify: "interfaceChanged"
+        }
+        Property {
+            name: "gatewayLatency"
+            type: "int"
+            read: "gatewayLatency"
+            notify: "latencyChanged"
+        }
+        Property {
+            name: "cloudflareLatency"
+            type: "int"
+            read: "cloudflareLatency"
+            notify: "latencyChanged"
+        }
+        Property {
+            name: "googleLatency"
+            type: "int"
+            read: "googleLatency"
+            notify: "latencyChanged"
+        }
+        Property {
+            name: "lastUpdate"
+            type: "QString"
+            read: "lastUpdate"
+            notify: "statsChanged"
+        }
+        Signal { name: "localIpChanged" }
+        Signal { name: "publicIpChanged" }
+        Signal { name: "interfaceChanged" }
+        Signal { name: "gatewayChanged" }
+        Signal { name: "dnsChanged" }
+        Signal { name: "vpnChanged" }
+        Signal { name: "statusChanged" }
+        Signal { name: "statsChanged" }
+        Signal { name: "latencyChanged" }
+        Method { name: "refresh" }
+        Method {
+            name: "copyToClipboard"
+            Parameter { name: "text"; type: "QString" }
+        }
+        Method {
+            name: "applyConfig"
+            Parameter { name: "config"; type: "QVariantMap" }
+        }
+        Method {
+            name: "setInterfaceFilter"
+            Parameter { name: "iface"; type: "QString" }
+        }
+        Method { name: "measureLatency" }
+    }
+}
