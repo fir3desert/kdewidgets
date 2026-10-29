@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/2.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/2.0
+                          http://www.kde.org/standards/kcfg/2.0/kcfg.xsd">
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <entry name="warningLevel" type="Int">
+            <label>Porcentaje a partir del cual la batería se muestra en color de aviso</label>
+            <default>20</default>
+        </entry>
+        <entry name="criticalLevel" type="Int">
+            <label>Porcentaje a partir del cual la batería se muestra en color crítico</label>
+            <default>10</default>
+        </entry>
+        <entry name="colorize" type="Bool">
+            <label>Usar colores según el estado (naranja por debajo del umbral de aviso, rojo por debajo del crítico y verde al cargar)</label>
+            <default>true</default>
+        </entry>
+        <entry name="chargingAnimation" type="Bool">
+            <label>Animar la batería mientras se carga</label>
+            <default>true</default>
+        </entry>
+        <entry name="demoMode" type="Bool">
+            <label>Mostrar datos simulados (vista previa)</label>
+            <default>false</default>
+        </entry>
+        <entry name="demoPercent" type="Int">
+            <label>Nivel simulado de batería</label>
+            <default>79</default>
+        </entry>
+        <entry name="demoCharging" type="Bool">
+            <label>Simular que la batería se está cargando</label>
+            <default>false</default>
+        </entry>
+    </group>
+</kcfg>

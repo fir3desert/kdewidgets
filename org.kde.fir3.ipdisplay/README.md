@@ -3,7 +3,9 @@
 **IP Display** is a KDE Plasma applet that shows your system's IP addresses in the
 panel, with an interactive popup containing detailed network information.
 
-It installs per-user under `~/.local` and never needs `sudo`.
+The installer works per-user without `sudo`. By default it uses locations
+under `~/.local` and `~/.config`, and it respects the standard XDG directory
+variables where applicable.
 
 ## Configuration
 
@@ -18,8 +20,8 @@ Right-click the widget → *Configure…*:
 | Auto-detect interface | on | let the plugin pick the active interface |
 | Interface | — | pin a specific interface (e.g. `wg0`, `eth0`) instead |
 | Public IP timeout | 5000 ms | give up on a public-IP endpoint after this long |
-| Public IPv4 endpoints | `api.ipify.org`, `ifconfig.me` | one per line, tried in order |
-| Public IPv6 endpoints | `api6.ipify.org`, `ifconfig.me` | one per line, tried in order |
+| Public IPv4 endpoints | `https://api.ipify.org`, `https://ifconfig.me` | one per line, tried in order |
+| Public IPv6 endpoints | `https://api6.ipify.org`, `https://ifconfig.me` | one per line, tried in order |
 
 The **Update interval** is what makes the dot react quickly when a VPN comes up
 while the popup is closed. Polling stops while the popup is open, because the
@@ -37,8 +39,9 @@ popup refreshes when it opens and long gaps would look stale.
   usually carries a /32 and does not become the default route, so the panel
   keeps showing your local address). The VPN address is not shown here, and
   neither is the interface name: the purple dot already signals the VPN
-- Refreshes on its own every 5 seconds, so the dot changes colour as soon as a
-  VPN goes up or down, without opening the popup
+- Refreshes at the configured interval (1 second by default, adjustable from
+  1 to 30 seconds), so the dot reflects status changes while the popup is
+  closed
 
 ### VPN support
 - **Automatic VPN detection** — works with WireGuard, OpenVPN and friends
@@ -92,9 +95,8 @@ popup refreshes when it opens and long gaps would look stale.
 1. **From KDE Plasma**: right-click the panel → *Add Widgets…* → find
    **IP Display** under the *System Information* category.
 
-2. **With the installer** (recommended) — installs per-user, no `sudo`, no
-   password prompt. It refuses to run as root, and only ever writes inside
-   `$HOME`:
+2. **With the installer** (recommended) — installs per-user, without `sudo`
+   or a password prompt. It refuses to run as root by default:
    ```bash
    ./install.sh          # or: bash install.sh
    ./uninstall.sh        # to remove it again
@@ -102,43 +104,36 @@ popup refreshes when it opens and long gaps would look stale.
    Useful flags: `--no-restart` (skip restarting the panel),
    `--allow-root` (testing only), `-h` for help.
 
-3. **Manually**: unzip the archive straight into your own Plasma applets
-   directory — no `sudo` needed:
-   ```bash
-   unzip ipdisplay-widget.zip -d ~/.local/share/plasma/plasmoids/
-   ```
-   The archive contains a single folder named after the applet id, so this
-   leaves the widget at
-   `~/.local/share/plasma/plasmoids/org.kde.fir3.ipdisplay`.
+3. Keep the project directory named `org.kde.fir3.ipdisplay` when running the
+   installer. It derives the install-directory name from that folder; if the
+   folder has a non-applet name, the install directory falls back to
+   `org.kde.plasma.ipdisplay`.
 
-   `install.sh` and `uninstall.sh` use the name of the folder they are run
-   from, so running them from the unzipped folder installs and removes the
-   applet under that same name. If the folder is renamed to something that is
-   not a dotted applet id (a git clone called `ipdisplay-widget`, for example),
-   they fall back to the default id `org.kde.plasma.ipdisplay`.
-
-4. **Reload Plasma** so the changes are picked up:
+4. **Reload Plasma** so the changes are picked up (the installer does this
+   unless `--no-restart` was passed):
    ```bash
    systemctl --user restart plasma-plasmashell.service
    ```
 
 ### What the installer writes
 
-Everything stays under `$HOME`, so no elevated permissions are ever required:
+By default, the installer writes to per-user locations and does not require
+elevated permissions. It respects `XDG_DATA_HOME`, `XDG_CONFIG_HOME` and
+`XDG_CACHE_HOME` where applicable:
 
 | Path | Purpose |
 |---|---|
-| `~/.local/share/plasma/plasmoids/org.kde.fir3.ipdisplay/` | the applet (QML, metadata, plugin) |
+| `${XDG_DATA_HOME:-~/.local/share}/plasma/plasmoids/org.kde.fir3.ipdisplay/` | the applet (QML, metadata, plugin) |
 | `~/.local/lib/qml/org/kde/plasma/ipdisplay/` | QML plugin copy, for the import path |
-| `~/.config/environment.d/99-org.kde.fir3.ipdisplay.conf` | import path, uses `$HOME` so it survives being moved |
-| `~/.config/plasma-workspace/env/ipdisplay.sh` | import path fallback for non-systemd sessions |
+| `${XDG_CONFIG_HOME:-~/.config}/environment.d/99-org.kde.fir3.ipdisplay.conf` | import path, uses `$HOME` so it survives being moved |
+| `${XDG_CONFIG_HOME:-~/.config}/plasma-workspace/env/ipdisplay.sh` | import path fallback for non-systemd sessions |
 
 The applet folder carries its own `plugin/` directory, which is the path Plasma
 uses by default, so the widget works even without the environment variables. The
 `~/.local/lib/qml` copy and the environment files are belt-and-braces.
 
-To uninstall, run `./uninstall.sh`. It removes all of the above and leaves
-empty parent directories behind, which is harmless.
+To uninstall, run `./uninstall.sh`. It removes the files it installed and
+leaves empty parent directories behind, which is harmless.
 
 ## Project layout
 
@@ -154,10 +149,14 @@ org.kde.fir3.ipdisplay/
 │       ├── main.qml           # panel + popup UI, VPN detection, polling
 │       ├── InfoRow.qml        # a single label/value row (click to copy)
 │       ├── ConfigGeneral.qml  # configuration dialog
-│       └── components/        # InfoRow as a versioned QML module
+│       └── components/
+│           ├── InfoRow.qml
+│           └── qmldir
 └── plugin/
     ├── libipdisplayplugin.so  # native NetworkInfo backend
-    └── ipdisplayplugin.qmltypes
+    ├── ipdisplayplugin.qmltypes
+    ├── kde-qmlmodule.version
+    └── qmldir
 ```
 
 The native plugin (`org.kde.plasma.ipdisplay`) exposes `NetworkInfo` with
@@ -181,5 +180,4 @@ When redistributing this software or a modified version, you must
 preserve the applicable original copyright and license notices and
 clearly indicate any modifications made to the original work.
 
-See [LICENSE](LICENSE) for the full license text.
-
+See [LICENSE](../LICENSE) for the full license text.

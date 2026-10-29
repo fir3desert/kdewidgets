@@ -2,26 +2,49 @@
 
 Custom KDE Plasma 6 widgets.
 
-Each widget lives in its own folder, named after its Plasma applet id, so it can
-be installed, updated or removed on its own without touching the others.
+Each applet can be installed and removed independently. The Battery packages
+are grouped under `org.kde.fir3.batterydisplay/`.
 
 ## Widgets
 
 | Widget | Id | Description |
 |---|---|---|
+| **Battery** | `org.kde.fir3.batterydisplay` | Battery status applet with 25 charging animation styles, color thresholds and a detailed popup. |
 | **IP Display** | `org.kde.fir3.ipdisplay` | Shows your LAN and public IP addresses in the panel, with a status dot, VPN detection and a popup with detailed network info (interface, gateway, DNS, traffic counters). |
+
+Battery has a main edition, a testing edition, and an archived earlier version:
+
+- **Main:** [Battery](./org.kde.fir3.batterydisplay/org.kde.fir3.batterydisplay-firstversion/README.md) — the full animation catalog and live battery data. Its Plasma ID is `org.kde.fir3.batterydisplay`.
+- **Testing:** [Battery (testing)](./org.kde.fir3.batterydisplay/org.kde.fir3.batterydisplay-testing/README.md) — the same animation catalog plus simulated battery data and preview controls.
+- **Archived:** [Original battery applet](./org.kde.fir3.batterydisplay/org.kde.fir3.batterydisplay/README.md) — the earlier, simpler version; use the main or testing edition for new installations.
 
 → **[Full documentation for IP Display](./org.kde.fir3.ipdisplay/README.md)**
 
 ## Requirements
 
 - KDE Plasma 6 (Qt 6). The applet declares `X-Plasma-API-Minimum-Version: 6.0`.
-- No `sudo` and no system folders: everything installs under your own `$HOME`.
+- No `sudo` or system-wide installation is required; widgets install per-user.
 
-## Installation
+## Install Battery
 
 ```bash
 git clone https://github.com/fir3desert/kdewidgets.git
+cd kdewidgets/org.kde.fir3.batterydisplay/org.kde.fir3.batterydisplay-firstversion
+./install.sh
+```
+
+Then add the applet to a panel: right-click the panel → *Add Widgets…* →
+**Battery**.
+
+For simulated battery data and preview controls, install the testing edition by
+running `install.sh` from
+`kdewidgets/org.kde.fir3.batterydisplay/org.kde.fir3.batterydisplay-testing`.
+
+## Install IP Display
+
+Run this from the repository root:
+
+```bash
 cd kdewidgets/org.kde.fir3.ipdisplay
 ./install.sh
 ```
@@ -29,26 +52,28 @@ cd kdewidgets/org.kde.fir3.ipdisplay
 Then add it to a panel: right-click the panel → *Add Widgets…* → **IP Display**
 (under the *System Information* category).
 
-To remove it again:
+To remove IP Display:
 
 ```bash
 ./uninstall.sh
 ```
 
-Installer options: `--no-restart` (skip restarting plasmashell), `--allow-root`
-(testing only), `-h` for help.
+Installer options for IP Display: `--no-restart` (skip restarting
+plasmashell), `--allow-root` (testing only), `-h` for help. See each widget's
+README for its uninstall instructions and other options.
 
 ## A note on the bundled plugin
 
 The applet reads network state through a native QML plugin
 (`plugin/libipdisplayplugin.so`) that queries NetworkManager over D-Bus and
-resolves public addresses via `api.ipify.org` / `ifconfig.me`.
+uses configurable public-IP endpoints (by default, `api.ipify.org` and
+`ifconfig.me`).
 
 **This repository ships that plugin prebuilt, and does not include its source
 code or a build system**, so it cannot be rebuilt or reproduced from here. The
 bundled binary targets a specific architecture and Qt minor version; if it does
-not match your machine, `install.sh` says so and keeps going, but the widget's
-network functionality will not load until a matching build is available.
+not match your machine, the installer reports the mismatch; network
+functionality may not load until a compatible build is available.
 
 The applet folder carries its own `plugin/` directory, which is the path Plasma
 uses by default. The installer additionally copies the plugin into
@@ -59,7 +84,12 @@ widget also works without relying on environment variables.
 
 ```
 kdewidgets/
+├── README.md                            # repository overview
 ├── LICENSE                              # GPL-3.0
+├── org.kde.fir3.batterydisplay/
+│   ├── org.kde.fir3.batterydisplay-firstversion/ # main edition (canonical applet ID)
+│   ├── org.kde.fir3.batterydisplay-testing/      # testing edition with simulation
+│   └── org.kde.fir3.batterydisplay/              # archived original edition
 └── org.kde.fir3.ipdisplay/
     ├── metadata.json                    # Plasma applet metadata
     ├── install.sh                       # per-user installer, no sudo

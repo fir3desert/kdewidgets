@@ -1,0 +1,21 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "fir3",
+                "Email": "fir3@example.com"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Muestra el nivel de batería dentro de una batería dibujada en la barra superior, con detalles al pulsar",
+        "Description[es]": "Muestra el nivel de batería dentro de una batería dibujada en la barra superior, con detalles al pulsar",
+        "Icon": "battery-good",
+        "Id": "org.kde.fir3.batterydisplay-original",
+        "License": "GPL-3.0+",
+        "Name": "Batería (original)",
+        "Name[es]": "Batería (original)",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

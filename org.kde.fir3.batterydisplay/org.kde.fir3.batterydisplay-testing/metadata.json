@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "fir3desert"
+            }
+        ],
+        "Website": "https://github.com/fir3desert",
+        "Category": "System Information",
+        "Description": "Testing edition with 25 charging animations and a simulated battery preview.",
+        "Icon": "battery-good",
+        "Id": "org.kde.fir3.batterydisplay-testing",
+        "License": "GPL-3.0+",
+        "Name": "Battery (testing)",
+        "Version": "1.2.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
