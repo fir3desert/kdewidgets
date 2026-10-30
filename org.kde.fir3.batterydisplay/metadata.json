@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "fir3desert"
+            }
+        ],
+        "Website": "https://github.com/fir3desert",
+        "Category": "System Information",
+        "Description": "Battery widget with 25 charging animations, color thresholds and live battery data",
+        "Icon": "battery-good",
+        "Id": "org.kde.fir3.batterydisplay-original",
+        "License": "GPL-3.0+",
+        "Name": "Battery",
+        "Version": "1.2.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
