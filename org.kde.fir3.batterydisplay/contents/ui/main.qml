@@ -41,6 +41,12 @@ PlasmoidItem {
 
     readonly property bool hasBattery: batteryModel.hasBatteries
 
+    // Animation settings, read once here and shared by both drawings.
+    readonly property bool animationEnabled: Plasmoid.configuration.chargingAnimation !== false
+    readonly property string animationStyle: String(Plasmoid.configuration.chargingAnimationStyle || "sweep")
+    // What the drawing receives (real data, or a fake battery in preview).
+    readonly property bool visualHasBattery: root.hasBattery || root.preview
+
     readonly property int percent: {
         if (!root.hasBattery) {
             return 0;
@@ -56,8 +62,30 @@ PlasmoidItem {
         return batteryModel.state;
     }
 
-    readonly property bool charging: root.chargeState === BatteryControlModel.Charging
-    readonly property bool fullyCharged: root.chargeState === BatteryControlModel.FullyCharged
+    // Solid::Battery::ChargeState: NoCharge=0, Charging=1, Discharging=2,
+    // FullyCharged=3. The numeric fallback keeps working if the enum is not
+    // exposed to QML by this Plasma version (the comparison would then be
+    // against `undefined` and the animations would never start).
+    function stateIs(state, named, numeric) {
+        return (named !== undefined && state === named) || state === numeric;
+    }
+
+    readonly property bool realCharging: root.hasBattery
+        && root.stateIs(root.chargeState, BatteryControlModel.Charging, 1)
+
+    // Preview mode (Settings): forces the animation so it can be tried
+    // without plugging the charger in, and on machines without a battery.
+    readonly property bool preview: Plasmoid.configuration.previewAnimation === true
+    // Connected to power but not actively charging (full battery, or a charge
+    // limit reached): optionally keep the animation going.
+    readonly property bool animateWhenFull: Plasmoid.configuration.animateWhenFull !== false
+    readonly property bool connectedIdle: root.hasBattery && root.animateWhenFull
+        && (root.fullyCharged
+            || (root.pluggedIn && root.stateIs(root.chargeState, BatteryControlModel.NoCharge, 0)))
+
+    readonly property bool charging: root.realCharging || root.connectedIdle || root.preview
+    readonly property bool fullyCharged: root.hasBattery
+        && root.stateIs(root.chargeState, BatteryControlModel.FullyCharged, 3)
     readonly property bool pluggedIn: batteryModel.pluggedIn
 
     readonly property real remainingMsec: {
@@ -119,70 +147,82 @@ PlasmoidItem {
         if (value < root.warningLevel) {
             return Kirigami.Theme.neutralTextColor;
         }
-        if (state === BatteryControlModel.Charging || state === BatteryControlModel.FullyCharged) {
+        if (root.stateIs(state, BatteryControlModel.Charging, 1) || root.stateIs(state, BatteryControlModel.FullyCharged, 3)) {
             return Kirigami.Theme.positiveTextColor;
         }
         return Kirigami.Theme.textColor;
     }
 
     function deviceStateText(state) {
-        switch (state) {
-        case BatteryControlModel.Charging:
-            return "Charging";
-        case BatteryControlModel.Discharging:
-            return "Discharging";
-        case BatteryControlModel.FullyCharged:
-            return "Fully charged";
-        case BatteryControlModel.NoCharge:
-            return "Not charging";
-        default:
-            return "Unknown";
+        if (root.stateIs(state, BatteryControlModel.Charging, 1)) {
+            return i18n("Charging");
         }
+        if (root.stateIs(state, BatteryControlModel.Discharging, 2)) {
+            return i18n("Discharging");
+        }
+        if (root.stateIs(state, BatteryControlModel.FullyCharged, 3)) {
+            return i18n("Fully charged");
+        }
+        if (root.stateIs(state, BatteryControlModel.NoCharge, 0)) {
+            return i18n("Not charging");
+        }
+        return i18n("Unknown");
     }
 
     readonly property string stateText: {
         if (!root.hasBattery) {
-            return "No battery";
+            return i18n("No battery");
         }
-        switch (root.chargeState) {
-        case BatteryControlModel.Charging:
-            return "Charging";
-        case BatteryControlModel.Discharging:
-            return root.pluggedIn ? "Plugged in, discharging" : "Discharging";
-        case BatteryControlModel.FullyCharged:
-            return "Fully charged";
-        case BatteryControlModel.NoCharge:
-            return root.pluggedIn ? "Idle" : "Not charging";
-        default:
-            return "Unknown";
+        if (root.realCharging) {
+            return i18n("Charging");
         }
+        if (root.stateIs(root.chargeState, BatteryControlModel.Discharging, 2)) {
+            return root.pluggedIn ? i18n("Plugged in, discharging") : i18n("Discharging");
+        }
+        if (root.fullyCharged) {
+            return i18n("Fully charged");
+        }
+        if (root.stateIs(root.chargeState, BatteryControlModel.NoCharge, 0)) {
+            return root.pluggedIn ? i18n("Plugged in, not charging") : i18n("Not charging");
+        }
+        return i18n("Unknown");
     }
 
     function formatDuration(msec) {
         const totalMinutes = Math.max(0, Math.round(msec / 60000));
         if (totalMinutes < 1) {
-            return "less than 1 min";
+            return i18n("less than 1 min");
         }
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
         if (hours > 0) {
-            return hours + " h " + (minutes < 10 ? "0" + minutes : minutes) + " min";
+            return i18n("%1 h %2 min", hours, (minutes < 10 ? "0" + minutes : minutes));
         }
-        return minutes + " min";
+        return i18n("%1 min", minutes);
     }
 
     readonly property string remainingText: {
         if (!root.hasBattery || root.fullyCharged || root.remainingMsec <= 0) {
             return "";
         }
-        if (root.charging) {
-            return root.formatDuration(root.remainingMsec) + " until full";
+        if (root.realCharging) {
+            return i18n("%1 until full", root.formatDuration(root.remainingMsec));
         }
-        if (root.chargeState === BatteryControlModel.Discharging) {
-            return root.formatDuration(root.remainingMsec) + " remaining";
+        if (root.stateIs(root.chargeState, BatteryControlModel.Discharging, 2)) {
+            return i18n("%1 remaining", root.formatDuration(root.remainingMsec));
         }
         return "";
     }
+
+    // Diagnostics: journalctl --user -f | grep fir3.batterydisplay
+    onChargeStateChanged: console.log("[fir3.batterydisplay] chargeState=" + root.chargeState
+        + " percent=" + root.percent + " pluggedIn=" + root.pluggedIn
+        + " charging=" + root.charging + " preview=" + root.preview)
+
+    Component.onCompleted: console.log("[fir3.batterydisplay] 1.3.1 loaded hasBattery=" + root.hasBattery
+        + " chargeState=" + root.chargeState + " percent=" + root.percent
+        + " pluggedIn=" + root.pluggedIn + " preview=" + root.preview
+        + " animEnabled=" + root.animationEnabled + " style=" + root.animationStyle)
 
     function openConfiguration() {
         const action = Plasmoid.internalAction("configure");
@@ -195,7 +235,7 @@ PlasmoidItem {
     // Applet
     // ---------------------------------------------------------------------
 
-    Plasmoid.title: "Battery"
+    Plasmoid.title: i18n("Battery")
     Plasmoid.icon: !root.hasBattery
         ? "battery-missing"
         : root.percent <= 10
@@ -210,11 +250,11 @@ PlasmoidItem {
         ? PlasmaCore.Types.ActiveStatus
         : PlasmaCore.Types.PassiveStatus
 
-    toolTipMainText: root.hasBattery ? "Battery at " + root.percent + " %" : "Battery"
+    toolTipMainText: root.hasBattery ? i18n("Battery at %1 %", root.percent) : i18n("Battery")
     toolTipSubText: {
         const parts = [];
         if (!root.hasBattery) {
-            parts.push("No battery detected");
+            parts.push(i18n("No battery detected"));
         } else {
             parts.push(root.stateText);
             if (root.remainingText !== "") {
@@ -252,7 +292,7 @@ PlasmoidItem {
 
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
-        Accessible.name: "Battery: " + (root.hasBattery ? root.percent + " %" : "no battery")
+        Accessible.name: i18n("Battery: %1", root.hasBattery ? i18n("%1 %", root.percent) : i18n("no battery"))
         Accessible.description: root.stateText
             + (root.remainingText !== "" ? "; " + root.remainingText : "")
 
@@ -278,11 +318,11 @@ PlasmoidItem {
             width: compact.visualWidth
             height: compact.visualHeight
             vertical: root.verticalPanel
-            percent: root.percent
-            hasBattery: root.hasBattery
+            percent: root.hasBattery ? root.percent : 60
+            hasBattery: root.visualHasBattery
             charging: root.charging
-            chargingAnimation: Plasmoid.configuration.chargingAnimation !== false
-            animationStyle: Plasmoid.configuration.chargingAnimationStyle || "sweep"
+            chargingAnimation: root.animationEnabled
+            animationStyle: root.animationStyle
             tintColor: root.accentColor
         }
     }
@@ -313,7 +353,7 @@ PlasmoidItem {
             spacing: Kirigami.Units.smallSpacing
 
             PlasmaComponents3.Label {
-                text: "Battery"
+                text: i18n("Battery")
                 font.bold: true
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
                 Layout.fillWidth: true
@@ -368,11 +408,11 @@ PlasmoidItem {
                 width: Math.min(parent.width - Kirigami.Units.gridUnit * 4,
                     Kirigami.Units.gridUnit * 11.5)
                 height: Math.round(width * 0.37)
-                percent: root.percent
-                hasBattery: root.hasBattery
+                percent: root.hasBattery ? root.percent : 60
+                hasBattery: root.visualHasBattery
                 charging: root.charging
-                chargingAnimation: Plasmoid.configuration.chargingAnimation !== false
-                animationStyle: Plasmoid.configuration.chargingAnimationStyle || "sweep"
+                chargingAnimation: root.animationEnabled
+                animationStyle: root.animationStyle
                 tintColor: root.accentColor
             }
         }
@@ -426,7 +466,7 @@ PlasmoidItem {
 
             PlasmaComponents3.Label {
                 visible: root.hasBattery
-                text: "Devices"
+                text: i18n("Devices")
                 font: Kirigami.Theme.smallFont
                 opacity: 0.6
                 Layout.fillWidth: true
@@ -449,7 +489,7 @@ PlasmoidItem {
                         Layout.fillWidth: true
 
                         PlasmaComponents3.Label {
-                            text: PrettyName && PrettyName.length > 0 ? PrettyName : "Battery"
+                            text: PrettyName && PrettyName.length > 0 ? PrettyName : i18n("Battery")
                             font.bold: true
                             Layout.fillWidth: true
                             elide: Text.ElideRight
@@ -488,7 +528,7 @@ PlasmoidItem {
 
                         PlasmaComponents3.Label {
                             visible: deviceRow.deviceHealth > 0
-                            text: "Health: " + deviceRow.deviceHealth + " %"
+                            text: i18n("Health: %1 %", deviceRow.deviceHealth)
                             font: Kirigami.Theme.smallFont
                             opacity: 0.7
                         }
@@ -510,7 +550,7 @@ PlasmoidItem {
                 spacing: Kirigami.Units.smallSpacing
 
                 PlasmaComponents3.Label {
-                    text: "No battery detected on this device."
+                    text: i18n("No battery detected on this device.")
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
                     Layout.fillWidth: true
@@ -538,7 +578,7 @@ PlasmoidItem {
             Item { Layout.fillWidth: true }
 
             PlasmaComponents3.Button {
-                text: "Settings"
+                text: i18n("Settings")
                 icon.name: "configure"
                 onClicked: {
                     root.expanded = false;
