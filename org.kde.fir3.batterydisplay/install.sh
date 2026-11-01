@@ -8,7 +8,7 @@
 #
 set -euo pipefail
 
-PLUGIN_ID="org.kde.fir3.batterydisplay-original"
+PLUGIN_ID="org.kde.fir3.batterydisplay"
 SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids/$PLUGIN_ID"
 
