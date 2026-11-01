@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.kirigami as Kirigami
+import "AnimationStyles.js" as AnimationStyles
 
 Item {
     id: root
@@ -12,33 +13,47 @@ Item {
     property color tintColor: Kirigami.Theme.textColor
     property string animationStyle: "sweep"
 
+    // Single source of truth for valid values: AnimationStyles.js. An unknown
+    // or empty value falls back to "sweep" so a charging battery always animates.
+    readonly property string safeStyle: {
+        const s = String(root.animationStyle === undefined || root.animationStyle === null
+            ? "" : root.animationStyle).trim();
+        return AnimationStyles.values().indexOf(s) >= 0 ? s : "sweep";
+    }
     readonly property real clampedPercent: Math.max(0, Math.min(100, root.percent))
-    readonly property bool animating: root.hasBattery && root.charging && root.chargingAnimation
-    readonly property bool sweeps: root.animating && (root.animationStyle === "sweep" || root.animationStyle === "double")
-    readonly property bool secondSweep: root.animating && root.animationStyle === "double"
-    readonly property bool breathing: root.animating && root.animationStyle === "pulse"
-    readonly property bool glowing: root.animating && root.animationStyle === "glow"
-    readonly property bool boltAnim: root.animating && root.animationStyle === "bolt"
-    readonly property bool lightningAnim: root.animating && root.animationStyle === "lightning"
-    readonly property bool waveAnim: root.animating && root.animationStyle === "wave"
-    readonly property bool stripesAnim: root.animating && root.animationStyle === "stripes"
-    readonly property bool cometAnim: root.animating && root.animationStyle === "comet"
-    readonly property bool heartbeatAnim: root.animating && root.animationStyle === "heartbeat"
-    readonly property bool neonAnim: root.animating && root.animationStyle === "neon"
-    readonly property bool twinCometAnim: root.animating && root.animationStyle === "twin"
-    readonly property bool snakeAnim: root.animating && root.animationStyle === "snake"
-    readonly property bool orbitAnim: root.animating && root.animationStyle === "orbit"
-    readonly property bool spiralAnim: root.animating && root.animationStyle === "spiral"
-    readonly property bool pendulumAnim: root.animating && root.animationStyle === "pendulum"
-    readonly property bool scannerAnim: root.animating && root.animationStyle === "scanner"
-    readonly property bool neonTwinAnim: root.animating && root.animationStyle === "neon2"
-    readonly property bool neonWaveAnim: root.animating && root.animationStyle === "neonwave"
-    readonly property bool neonBoltAnim: root.animating && root.animationStyle === "neonbolt"
-    readonly property bool neonSpinAnim: root.animating && root.animationStyle === "neonspin"
-    readonly property bool fireflyAnim: root.animating && root.animationStyle === "firefly"
-    readonly property bool rippleAnim: root.animating && root.animationStyle === "ripple"
-    readonly property bool auroraAnim: root.animating && root.animationStyle === "aurora"
-    readonly property bool matrixAnim: root.animating && root.animationStyle === "matrix"
+
+    readonly property bool animating: root.hasBattery && root.charging
+        && root.chargingAnimation !== false
+
+    onAnimatingChanged: console.log("[fir3.batterydisplay] visual animating=" + root.animating
+        + " style=" + root.safeStyle + " charging=" + root.charging
+        + " enabled=" + root.chargingAnimation)
+
+    readonly property bool sweeps: root.animating && (root.safeStyle === "sweep" || root.safeStyle === "double")
+    readonly property bool secondSweep: root.animating && root.safeStyle === "double"
+    readonly property bool breathing: root.animating && root.safeStyle === "pulse"
+    readonly property bool glowing: root.animating && root.safeStyle === "glow"
+    readonly property bool boltAnim: root.animating && root.safeStyle === "bolt"
+    readonly property bool lightningAnim: root.animating && root.safeStyle === "lightning"
+    readonly property bool waveAnim: root.animating && root.safeStyle === "wave"
+    readonly property bool stripesAnim: root.animating && root.safeStyle === "stripes"
+    readonly property bool cometAnim: root.animating && root.safeStyle === "comet"
+    readonly property bool heartbeatAnim: root.animating && root.safeStyle === "heartbeat"
+    readonly property bool neonAnim: root.animating && root.safeStyle === "neon"
+    readonly property bool twinCometAnim: root.animating && root.safeStyle === "twin"
+    readonly property bool snakeAnim: root.animating && root.safeStyle === "snake"
+    readonly property bool orbitAnim: root.animating && root.safeStyle === "orbit"
+    readonly property bool spiralAnim: root.animating && root.safeStyle === "spiral"
+    readonly property bool pendulumAnim: root.animating && root.safeStyle === "pendulum"
+    readonly property bool scannerAnim: root.animating && root.safeStyle === "scanner"
+    readonly property bool neonTwinAnim: root.animating && root.safeStyle === "neon2"
+    readonly property bool neonWaveAnim: root.animating && root.safeStyle === "neonwave"
+    readonly property bool neonBoltAnim: root.animating && root.safeStyle === "neonbolt"
+    readonly property bool neonSpinAnim: root.animating && root.safeStyle === "neonspin"
+    readonly property bool fireflyAnim: root.animating && root.safeStyle === "firefly"
+    readonly property bool rippleAnim: root.animating && root.safeStyle === "ripple"
+    readonly property bool auroraAnim: root.animating && root.safeStyle === "aurora"
+    readonly property bool matrixAnim: root.animating && root.safeStyle === "matrix"
 
     property real chargePulse
     SequentialAnimation on chargePulse {
@@ -87,7 +102,6 @@ Item {
         }
         root.celebrationProgress = 0;
         root.celebrating = true;
-        celebrationCanvas.requestPaint();
     }
 
     readonly property color outlineColor: {
@@ -250,7 +264,9 @@ Item {
         height: root.vertical ? body.usableHeight * root.clampedPercent / 100 : body.usableHeight
         radius: Math.max(1, body.radius - body.lineWidth - 1)
         color: Qt.alpha(root.tintColor, root.fillOpacity)
-        clip: false
+        // The sweep highlights start outside the fill (so they enter smoothly);
+        // clipping keeps them from being drawn outside the battery.
+        clip: true
 
         Behavior on width { enabled: !root.vertical; NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
         Behavior on height { enabled: root.vertical; NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -303,1408 +319,1758 @@ Item {
     // Thunderstorm ("bolt"): zigzag lightning bolts drawn at random
     // positions inside the battery body, flashing continuously while
     // charging, like a small electrical storm.
-    Canvas {
-        id: boltCanvas
-
-        objectName: "boltCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.boltAnim
         z: 2
+        active: root.boltAnim
+        sourceComponent: Component {
+            Canvas {
+                id: boltCanvas
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.boltAnim || width <= 0 || height <= 0) {
-                return;
+                objectName: "boltCanvas"
+                anchors.fill: parent
+                visible: root.boltAnim
+                z: 2
+                Component.onCompleted: requestPaint()
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.boltAnim || width <= 0 || height <= 0) {
+                        return;
+                    }
+
+                    // Faint background glow, as if it were lighting up the storm.
+                    if (Math.random() < 0.18) {
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.07);
+                        ctx.fillRect(0, 0, width, height);
+                    }
+
+                    const strikes = 2 + Math.floor(Math.random() * 3);
+                    for (let s = 0; s < strikes; s++) {
+                        // Every now and then a bolt is skipped so the storm
+                        // does not blink at a regular cadence.
+                        if (Math.random() < 0.20) {
+                            continue;
+                        }
+
+                        const x = width * (0.08 + Math.random() * 0.84);
+                        const top = height * (Math.random() < 0.5 ? 0.02 : 0.12);
+                        const bottom = height * (0.98 - Math.random() * 0.12);
+                        const jitter = Math.max(2.5, width * 0.14);
+                        const segments = 6;
+                        const points = [[x, top]];
+
+                        for (let i = 1; i < segments; i++) {
+                            const t = i / segments;
+                            points.push([
+                                Math.max(2, Math.min(width - 2,
+                                    x + (Math.random() - 0.5) * jitter * 2)),
+                                top + (bottom - top) * t
+                            ]);
+                        }
+                        points.push([
+                            Math.max(2, Math.min(width - 2,
+                                x + (Math.random() - 0.5) * jitter)),
+                            bottom
+                        ]);
+
+                        ctx.beginPath();
+                        ctx.moveTo(points[0][0], points[0][1]);
+                        for (let i = 1; i < points.length; i++) {
+                            ctx.lineTo(points[i][0], points[i][1]);
+                        }
+                        ctx.lineCap = "round";
+                        ctx.lineJoin = "round";
+                        ctx.shadowColor = "#cfefff";
+                        ctx.shadowBlur = Math.max(3, height * 0.22);
+
+                        // Outer halo.
+                        ctx.lineWidth = Math.max(2.5, height * 0.18);
+                        ctx.strokeStyle = Qt.rgba(0.65, 0.88, 1, 0.20);
+                        ctx.stroke();
+
+                        // Bright core of the bolt.
+                        ctx.lineWidth = Math.max(1, height * 0.06);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.55 + Math.random() * 0.45);
+                        ctx.stroke();
+
+                        // Secondary branch, to make it look like a real lightning bolt.
+                        if (Math.random() < 0.70) {
+                            const point = points[1 + Math.floor(Math.random() * (points.length - 2))];
+                            const direction = Math.random() < 0.5 ? -1 : 1;
+                            const length = (bottom - top) * 0.22;
+
+                            ctx.beginPath();
+                            ctx.moveTo(point[0], point[1]);
+                            ctx.lineTo(point[0] + direction * jitter * (0.6 + Math.random() * 0.6),
+                                       point[1] + length * 0.5);
+                            ctx.lineTo(point[0] + direction * jitter * (0.9 + Math.random() * 0.8),
+                                       point[1] + length);
+                            ctx.lineWidth = Math.max(0.8, height * 0.045);
+                            ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.45 + Math.random() * 0.4);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                Timer {
+                    interval: 55
+                    repeat: true
+                    running: boltCanvas.visible && root.animating
+                    onTriggered: boltCanvas.requestPaint()
+                }
             }
-
-            // Faint background glow, as if it were lighting up the storm.
-            if (Math.random() < 0.18) {
-                ctx.fillStyle = Qt.rgba(1, 1, 1, 0.07);
-                ctx.fillRect(0, 0, width, height);
-            }
-
-            const strikes = 2 + Math.floor(Math.random() * 3);
-            for (let s = 0; s < strikes; s++) {
-                // Every now and then a bolt is skipped so the storm
-                // does not blink at a regular cadence.
-                if (Math.random() < 0.20) {
-                    continue;
-                }
-
-                const x = width * (0.08 + Math.random() * 0.84);
-                const top = height * (Math.random() < 0.5 ? 0.02 : 0.12);
-                const bottom = height * (0.98 - Math.random() * 0.12);
-                const jitter = Math.max(2.5, width * 0.14);
-                const segments = 6;
-                const points = [[x, top]];
-
-                for (let i = 1; i < segments; i++) {
-                    const t = i / segments;
-                    points.push([
-                        Math.max(2, Math.min(width - 2,
-                            x + (Math.random() - 0.5) * jitter * 2)),
-                        top + (bottom - top) * t
-                    ]);
-                }
-                points.push([
-                    Math.max(2, Math.min(width - 2,
-                        x + (Math.random() - 0.5) * jitter)),
-                    bottom
-                ]);
-
-                ctx.beginPath();
-                ctx.moveTo(points[0][0], points[0][1]);
-                for (let i = 1; i < points.length; i++) {
-                    ctx.lineTo(points[i][0], points[i][1]);
-                }
-                ctx.lineCap = "round";
-                ctx.lineJoin = "round";
-                ctx.shadowColor = "#cfefff";
-                ctx.shadowBlur = Math.max(3, height * 0.22);
-
-                // Outer halo.
-                ctx.lineWidth = Math.max(2.5, height * 0.18);
-                ctx.strokeStyle = Qt.rgba(0.65, 0.88, 1, 0.20);
-                ctx.stroke();
-
-                // Bright core of the bolt.
-                ctx.lineWidth = Math.max(1, height * 0.06);
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.55 + Math.random() * 0.45);
-                ctx.stroke();
-
-                // Secondary branch, to make it look like a real lightning bolt.
-                if (Math.random() < 0.70) {
-                    const point = points[1 + Math.floor(Math.random() * (points.length - 2))];
-                    const direction = Math.random() < 0.5 ? -1 : 1;
-                    const length = (bottom - top) * 0.22;
-
-                    ctx.beginPath();
-                    ctx.moveTo(point[0], point[1]);
-                    ctx.lineTo(point[0] + direction * jitter * (0.6 + Math.random() * 0.6),
-                               point[1] + length * 0.5);
-                    ctx.lineTo(point[0] + direction * jitter * (0.9 + Math.random() * 0.8),
-                               point[1] + length);
-                    ctx.lineWidth = Math.max(0.8, height * 0.045);
-                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.45 + Math.random() * 0.4);
-                    ctx.stroke();
-                }
-            }
-        }
-
-        Timer {
-            interval: 80
-            repeat: true
-            running: boltCanvas.visible
-            onTriggered: boltCanvas.requestPaint()
         }
     }
 
     // "lightning" style: a single fixed horizontal bolt inside a plasma
     // halo. The bolt and its arcs flicker in place, without moving from
     // right to left.
-    Canvas {
-        id: lightningCanvas
-
-        objectName: "lightningCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.lightningAnim
         z: 2
+        active: root.lightningAnim
+        sourceComponent: Component {
+            Canvas {
+                id: lightningCanvas
 
-        onVisibleChanged: if (visible) requestPaint()
+                objectName: "lightningCanvas"
+                anchors.fill: parent
+                visible: root.lightningAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.lightningAnim || width <= 0 || height <= 0) {
-                return;
+                onVisibleChanged: if (visible) requestPaint()
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.lightningAnim || width <= 0 || height <= 0) {
+                        return;
+                    }
+
+                    const margin = Math.max(2, body.innerInset + 1);
+                    const startX = Math.min(margin, width / 2);
+                    const endX = Math.max(width - margin, startX + 1);
+                    const boltLength = Math.max(8, endX - startX);
+                    const centerY = height / 2;
+                    const centerX = width / 2;
+                    const glowRadius = Math.max(2, height * 0.30);
+                    const glowStretch = Math.max(1, centerX / glowRadius);
+
+                    // Continuous plasma halo along the whole bolt, without stray
+                    // dots in the background.
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.scale(glowStretch, 1);
+                    const plasma = ctx.createRadialGradient(0, 0, 0, 0, 0, glowRadius);
+                    plasma.addColorStop(0.0, "rgba(220,245,255,0.42)");
+                    plasma.addColorStop(0.28, "rgba(190,225,255,0.18)");
+                    plasma.addColorStop(0.60, "rgba(120,180,255,0.06)");
+                    plasma.addColorStop(1.0, "rgba(80,150,255,0.0)");
+                    ctx.fillStyle = plasma;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Single horizontal zigzag bolt.
+                    const jitter = Math.max(1.5, height * 0.18);
+                    const segments = 7;
+                    const points = [[startX, centerY]];
+
+                    for (let i = 1; i < segments; i++) {
+                        const t = i / segments;
+                        points.push([
+                            startX + boltLength * t,
+                            centerY + (Math.random() - 0.5) * jitter * 2
+                        ]);
+                    }
+                    points.push([endX, centerY]);
+
+                    ctx.beginPath();
+                    ctx.moveTo(points[0][0], points[0][1]);
+                    for (let i = 1; i < points.length; i++) {
+                        ctx.lineTo(points[i][0], points[i][1]);
+                    }
+                    ctx.lineCap = "round";
+                    ctx.lineJoin = "round";
+                    ctx.shadowColor = "#9fd2f0";
+                    ctx.shadowBlur = Math.max(2, height * 0.14);
+
+                    // Bolt halo.
+                    ctx.lineWidth = Math.max(1.8, height * 0.11);
+                    ctx.strokeStyle = Qt.rgba(0.59, 0.84, 1, 0.16);
+                    ctx.stroke();
+
+                    // Bright core.
+                    ctx.lineWidth = Math.max(1, height * 0.045);
+                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.55 + Math.random() * 0.30);
+                    ctx.stroke();
+                }
+
+                Timer {
+                    interval: 70
+                    repeat: true
+                    running: lightningCanvas.visible
+                    onTriggered: lightningCanvas.requestPaint()
+                }
             }
-
-            const margin = Math.max(2, body.innerInset + 1);
-            const startX = Math.min(margin, width / 2);
-            const endX = Math.max(width - margin, startX + 1);
-            const boltLength = Math.max(8, endX - startX);
-            const centerY = height / 2;
-            const centerX = width / 2;
-            const glowRadius = Math.max(2, height * 0.30);
-            const glowStretch = Math.max(1, centerX / glowRadius);
-
-            // Continuous plasma halo along the whole bolt, without stray
-            // dots in the background.
-            ctx.save();
-            ctx.translate(centerX, centerY);
-            ctx.scale(glowStretch, 1);
-            const plasma = ctx.createRadialGradient(0, 0, 0, 0, 0, glowRadius);
-            plasma.addColorStop(0.0, "rgba(220,245,255,0.42)");
-            plasma.addColorStop(0.28, "rgba(190,225,255,0.18)");
-            plasma.addColorStop(0.60, "rgba(120,180,255,0.06)");
-            plasma.addColorStop(1.0, "rgba(80,150,255,0.0)");
-            ctx.fillStyle = plasma;
-            ctx.beginPath();
-            ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            // Single horizontal zigzag bolt.
-            const jitter = Math.max(1.5, height * 0.18);
-            const segments = 7;
-            const points = [[startX, centerY]];
-
-            for (let i = 1; i < segments; i++) {
-                const t = i / segments;
-                points.push([
-                    startX + boltLength * t,
-                    centerY + (Math.random() - 0.5) * jitter * 2
-                ]);
-            }
-            points.push([endX, centerY]);
-
-            ctx.beginPath();
-            ctx.moveTo(points[0][0], points[0][1]);
-            for (let i = 1; i < points.length; i++) {
-                ctx.lineTo(points[i][0], points[i][1]);
-            }
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.shadowColor = "#9fd2f0";
-            ctx.shadowBlur = Math.max(2, height * 0.14);
-
-            // Bolt halo.
-            ctx.lineWidth = Math.max(1.8, height * 0.11);
-            ctx.strokeStyle = Qt.rgba(0.59, 0.84, 1, 0.16);
-            ctx.stroke();
-
-            // Bright core.
-            ctx.lineWidth = Math.max(1, height * 0.045);
-            ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.55 + Math.random() * 0.30);
-            ctx.stroke();
-        }
-
-        Timer {
-            interval: 70
-            repeat: true
-            running: lightningCanvas.visible
-            onTriggered: lightningCanvas.requestPaint()
         }
     }
 
     // Liquid wave: the surface of the fill ripples. When horizontal, the
     // wave runs along the right edge (the charging front); when vertical,
     // along the top edge.
-    Canvas {
-        id: waveCanvas
-
-        objectName: "waveCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.waveAnim
         z: 2
+        active: root.waveAnim
+        sourceComponent: Component {
+            Canvas {
+                id: waveCanvas
 
-        property real phase: 0
+                objectName: "waveCanvas"
+                anchors.fill: parent
+                visible: root.waveAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: waveCanvas.visible
-            onTriggered: {
-                waveCanvas.phase += 0.10;
-                waveCanvas.requestPaint();
-            }
-        }
+                onVisibleChanged: if (visible) requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.waveAnim) {
-                return;
-            }
-
-            const fr = root.fillRect;
-            if (fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const shortSide = root.vertical ? fr.height : fr.width;
-            const span = root.vertical ? fr.width : fr.height;
-            const amp = Math.max(1.2, Math.min(3, shortSide * 0.10));
-            const step = Math.max(2, span / 28);
-            const halo = Math.max(1.6, body.lineWidth * 0.9);
-
-            for (let layer = 0; layer < 2; layer++) {
-                const phase = waveCanvas.phase + layer * Math.PI * 0.7;
-                ctx.beginPath();
-                if (root.vertical) {
-                    const baseY = fr.y + 1 + layer * amp * 0.8;
-                    for (let d = 0; d <= span + step; d += step) {
-                        const t = Math.min(1, d / span);
-                        const y = baseY + Math.sin(t * Math.PI * 2 + phase) * amp;
-                        if (d === 0) {
-                            ctx.moveTo(fr.x, y);
-                        } else {
-                            ctx.lineTo(fr.x + d, y);
-                        }
-                    }
-                } else {
-                    const baseX = fr.x + fr.width - 1 - layer * amp * 0.8;
-                    for (let d = 0; d <= span + step; d += step) {
-                        const t = Math.min(1, d / span);
-                        const x = baseX + Math.sin(t * Math.PI * 2 + phase) * amp;
-                        if (d === 0) {
-                            ctx.moveTo(x, fr.y);
-                        } else {
-                            ctx.lineTo(x, fr.y + d);
-                        }
+                Timer {
+                    interval: 45
+                    repeat: true
+                    running: waveCanvas.visible
+                    onTriggered: {
+                        waveCanvas.phase += 0.10;
+                        waveCanvas.requestPaint();
                     }
                 }
-                ctx.lineCap = "round";
-                ctx.lineJoin = "round";
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, layer === 0 ? 0.16 : 0.30);
-                ctx.lineWidth = layer === 0 ? halo : Math.max(0.8, body.lineWidth * 0.45);
-                ctx.stroke();
-            }
 
-            ctx.restore();
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.waveAnim) {
+                        return;
+                    }
+
+                    const fr = root.fillRect;
+                    if (fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const shortSide = root.vertical ? fr.height : fr.width;
+                    const span = root.vertical ? fr.width : fr.height;
+                    const amp = Math.max(1.2, Math.min(3, shortSide * 0.10));
+                    const step = Math.max(2, span / 28);
+                    const halo = Math.max(1.6, body.lineWidth * 0.9);
+
+                    for (let layer = 0; layer < 2; layer++) {
+                        const phase = waveCanvas.phase + layer * Math.PI * 0.7;
+                        ctx.beginPath();
+                        if (root.vertical) {
+                            const baseY = fr.y + 1 + layer * amp * 0.8;
+                            for (let d = 0; d <= span + step; d += step) {
+                                const t = Math.min(1, d / span);
+                                const y = baseY + Math.sin(t * Math.PI * 2 + phase) * amp;
+                                if (d === 0) {
+                                    ctx.moveTo(fr.x, y);
+                                } else {
+                                    ctx.lineTo(fr.x + d, y);
+                                }
+                            }
+                        } else {
+                            const baseX = fr.x + fr.width - 1 - layer * amp * 0.8;
+                            for (let d = 0; d <= span + step; d += step) {
+                                const t = Math.min(1, d / span);
+                                const x = baseX + Math.sin(t * Math.PI * 2 + phase) * amp;
+                                if (d === 0) {
+                                    ctx.moveTo(x, fr.y);
+                                } else {
+                                    ctx.lineTo(x, fr.y + d);
+                                }
+                            }
+                        }
+                        ctx.lineCap = "round";
+                        ctx.lineJoin = "round";
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, layer === 0 ? 0.16 : 0.30);
+                        ctx.lineWidth = layer === 0 ? halo : Math.max(0.8, body.lineWidth * 0.45);
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
+            }
         }
     }
 
     // Moving stripes: diagonal bands sweeping across the fill, like an
     // animated progress bar.
-    Canvas {
-        id: stripesCanvas
-
-        objectName: "stripesCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.stripesAnim
         z: 2
+        active: root.stripesAnim
+        sourceComponent: Component {
+            Canvas {
+                id: stripesCanvas
 
-        property real offset: 0
+                objectName: "stripesCanvas"
+                anchors.fill: parent
+                visible: root.stripesAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real offset: 0
 
-        Timer {
-            interval: 50
-            repeat: true
-            running: stripesCanvas.visible
-            onTriggered: {
-                stripesCanvas.offset = (stripesCanvas.offset
-                    + root.stripeSpacing * 0.12) % root.stripeSpacing;
-                stripesCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 50
+                    repeat: true
+                    running: stripesCanvas.visible
+                    onTriggered: {
+                        stripesCanvas.offset = (stripesCanvas.offset
+                            + root.stripeSpacing * 0.12) % root.stripeSpacing;
+                        stripesCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.stripesAnim) {
+                        return;
+                    }
+
+                    const fr = root.fillRect;
+                    if (fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const spacing = root.stripeSpacing;
+                    ctx.lineWidth = Math.max(1.2, spacing * 0.34);
+                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.20);
+                    ctx.lineCap = "butt";
+
+                    for (let start = -fr.height - spacing + stripesCanvas.offset;
+                            start < fr.width + spacing; start += spacing) {
+                        ctx.beginPath();
+                        ctx.moveTo(fr.x + start, fr.y + fr.height);
+                        ctx.lineTo(fr.x + start + fr.height, fr.y);
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.stripesAnim) {
-                return;
-            }
-
-            const fr = root.fillRect;
-            if (fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const spacing = root.stripeSpacing;
-            ctx.lineWidth = Math.max(1.2, spacing * 0.34);
-            ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.20);
-            ctx.lineCap = "butt";
-
-            for (let start = -fr.height - spacing + stripesCanvas.offset;
-                    start < fr.width + spacing; start += spacing) {
-                ctx.beginPath();
-                ctx.moveTo(fr.x + start, fr.y + fr.height);
-                ctx.lineTo(fr.x + start + fr.height, fr.y);
-                ctx.stroke();
-            }
-
-            ctx.restore();
         }
     }
 
     // Comet: a bright dot with a tail crosses the fill and repeats.
-    Canvas {
-        id: cometCanvas
-
-        objectName: "cometCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.cometAnim
         z: 2
+        active: root.cometAnim
+        sourceComponent: Component {
+            Canvas {
+                id: cometCanvas
 
-        property real progress: 0
+                objectName: "cometCanvas"
+                anchors.fill: parent
+                visible: root.cometAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real progress: 0
 
-        Timer {
-            interval: 40
-            repeat: true
-            running: cometCanvas.visible
-            onTriggered: {
-                cometCanvas.progress += 0.014;
-                if (cometCanvas.progress > 1.30) {
-                    cometCanvas.progress = 0;
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 40
+                    repeat: true
+                    running: cometCanvas.visible
+                    onTriggered: {
+                        cometCanvas.progress += 0.014;
+                        if (cometCanvas.progress > 1.30) {
+                            cometCanvas.progress = 0;
+                        }
+                        cometCanvas.requestPaint();
+                    }
                 }
-                cometCanvas.requestPaint();
-            }
-        }
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.cometAnim || cometCanvas.progress > 1) {
-                return;
-            }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.cometAnim || cometCanvas.progress > 1) {
+                        return;
+                    }
 
-            const fr = root.fillRect;
-            if (fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
+                    const fr = root.fillRect;
+                    if (fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
 
-            ctx.save();
-            root.clipToFill(ctx);
+                    ctx.save();
+                    root.clipToFill(ctx);
 
-            const travel = Math.max(0, Math.min(1, cometCanvas.progress));
-            const shortSide = root.vertical ? fr.width : fr.height;
-            const trailT = Math.max(0, travel - 0.38);
+                    const travel = Math.max(0, Math.min(1, cometCanvas.progress));
+                    const shortSide = root.vertical ? fr.width : fr.height;
+                    const trailT = Math.max(0, travel - 0.38);
 
-            function cometPoint(t) {
-                if (root.vertical) {
-                    return {
-                        x: fr.x + fr.width / 2 + Math.sin(t * Math.PI * 2) * fr.width * 0.15,
-                        y: fr.y + fr.height - t * fr.height
-                    };
+                    function cometPoint(t) {
+                        if (root.vertical) {
+                            return {
+                                x: fr.x + fr.width / 2 + Math.sin(t * Math.PI * 2) * fr.width * 0.15,
+                                y: fr.y + fr.height - t * fr.height
+                            };
+                        }
+                        return {
+                            x: fr.x + t * fr.width,
+                            y: fr.y + fr.height / 2 + Math.sin(t * Math.PI * 2) * fr.height * 0.15
+                        };
+                    }
+
+                    const head = cometPoint(travel);
+                    const tail = cometPoint(trailT);
+
+                    if (travel - trailT > 0.01) {
+                        const gradient = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
+                        gradient.addColorStop(0, "rgba(255,255,255,0)");
+                        gradient.addColorStop(0.55, "rgba(255,255,255,0.18)");
+                        gradient.addColorStop(1, "rgba(255,255,255,0.62)");
+                        ctx.strokeStyle = gradient;
+                        ctx.lineWidth = Math.max(1.2, shortSide * 0.10);
+                        ctx.lineCap = "round";
+                        ctx.beginPath();
+                        ctx.moveTo(tail.x, tail.y);
+                        ctx.lineTo(head.x, head.y);
+                        ctx.stroke();
+                    }
+
+                    const glowRadius = Math.max(2.5, shortSide * 0.38);
+                    const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, glowRadius);
+                    glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                    glow.addColorStop(0.35, "rgba(255,255,255,0.35)");
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
                 }
-                return {
-                    x: fr.x + t * fr.width,
-                    y: fr.y + fr.height / 2 + Math.sin(t * Math.PI * 2) * fr.height * 0.15
-                };
             }
-
-            const head = cometPoint(travel);
-            const tail = cometPoint(trailT);
-
-            if (travel - trailT > 0.01) {
-                const gradient = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
-                gradient.addColorStop(0, "rgba(255,255,255,0)");
-                gradient.addColorStop(0.55, "rgba(255,255,255,0.18)");
-                gradient.addColorStop(1, "rgba(255,255,255,0.62)");
-                ctx.strokeStyle = gradient;
-                ctx.lineWidth = Math.max(1.2, shortSide * 0.10);
-                ctx.lineCap = "round";
-                ctx.beginPath();
-                ctx.moveTo(tail.x, tail.y);
-                ctx.lineTo(head.x, head.y);
-                ctx.stroke();
-            }
-
-            const glowRadius = Math.max(2.5, shortSide * 0.38);
-            const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, glowRadius);
-            glow.addColorStop(0, "rgba(255,255,255,0.85)");
-            glow.addColorStop(0.35, "rgba(255,255,255,0.35)");
-            glow.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
         }
     }
 
     // Perimeter neon: a point of light travels around the body outline.
-    Canvas {
-        id: neonCanvas
-
-        objectName: "neonCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.neonAnim
         z: 2
+        active: root.neonAnim
+        sourceComponent: Component {
+            Canvas {
+                id: neonCanvas
 
-        property real progress: 0
+                objectName: "neonCanvas"
+                anchors.fill: parent
+                visible: root.neonAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real progress: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: neonCanvas.visible
-            onTriggered: {
-                neonCanvas.progress = (neonCanvas.progress + 0.018) % 1;
-                neonCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 45
+                    repeat: true
+                    running: neonCanvas.visible
+                    onTriggered: {
+                        neonCanvas.progress = (neonCanvas.progress + 0.018) % 1;
+                        neonCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.neonAnim || width <= 2 || height <= 2) {
+                        return;
+                    }
+
+                    const inset = Math.max(1, body.lineWidth / 2);
+                    const x = inset;
+                    const y = inset;
+                    const w = width - inset * 2;
+                    const h = height - inset * 2;
+                    const radius = Math.max(1, body.radius - inset);
+                    const straightW = Math.max(0, w - radius * 2);
+                    const straightH = Math.max(0, h - radius * 2);
+                    const arc = Math.PI * radius / 2;
+                    const perimeter = 2 * straightW + 2 * straightH + 4 * arc;
+
+                    if (perimeter <= 0) {
+                        return;
+                    }
+
+                    function perimeterPoint(t) {
+                        let d = (((t % 1) + 1) % 1) * perimeter;
+
+                        if (d <= straightW) {
+                            return { x: x + radius + d, y: y };
+                        }
+                        d -= straightW;
+
+                        if (d <= arc) {
+                            const a = -Math.PI / 2 + (d / arc) * (Math.PI / 2);
+                            return {
+                                x: x + w - radius + radius * Math.cos(a),
+                                y: y + radius + radius * Math.sin(a)
+                            };
+                        }
+                        d -= arc;
+
+                        if (d <= straightH) {
+                            return { x: x + w, y: y + radius + d };
+                        }
+                        d -= straightH;
+
+                        if (d <= arc) {
+                            const a = (d / arc) * (Math.PI / 2);
+                            return {
+                                x: x + w - radius + radius * Math.cos(a),
+                                y: y + h - radius + radius * Math.sin(a)
+                            };
+                        }
+                        d -= arc;
+
+                        if (d <= straightW) {
+                            return { x: x + w - radius - d, y: y + h };
+                        }
+                        d -= straightW;
+
+                        if (d <= arc) {
+                            const a = Math.PI / 2 + (d / arc) * (Math.PI / 2);
+                            return {
+                                x: x + radius + radius * Math.cos(a),
+                                y: y + h - radius + radius * Math.sin(a)
+                            };
+                        }
+                        d -= arc;
+
+                        if (d <= straightH) {
+                            return { x: x, y: y + h - radius - d };
+                        }
+                        d -= straightH;
+
+                        const a = Math.PI + (d / arc) * (Math.PI / 2);
+                        return {
+                            x: x + radius + radius * Math.cos(a),
+                            y: y + radius + radius * Math.sin(a)
+                        };
+                    }
+
+                    // Trail: several dots with decreasing opacity.
+                    for (let k = 7; k >= 0; k--) {
+                        const point = perimeterPoint(neonCanvas.progress - k * 0.016);
+                        const strength = 1 - k / 8;
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y,
+                            Math.max(1, body.lineWidth * (0.45 + 0.75 * strength)),
+                            0, Math.PI * 2);
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.08 + 0.52 * strength * strength);
+                        ctx.fill();
+                    }
+
+                    // Neon head with a halo.
+                    const head = perimeterPoint(neonCanvas.progress);
+                    const glowRadius = Math.max(2, body.lineWidth * 2.4);
+                    const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                        head.x, head.y, glowRadius);
+                    glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                    glow.addColorStop(0.4, "rgba(255,255,255,0.30)");
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.neonAnim || width <= 2 || height <= 2) {
-                return;
-            }
-
-            const inset = Math.max(1, body.lineWidth / 2);
-            const x = inset;
-            const y = inset;
-            const w = width - inset * 2;
-            const h = height - inset * 2;
-            const radius = Math.max(1, body.radius - inset);
-            const straightW = Math.max(0, w - radius * 2);
-            const straightH = Math.max(0, h - radius * 2);
-            const arc = Math.PI * radius / 2;
-            const perimeter = 2 * straightW + 2 * straightH + 4 * arc;
-
-            if (perimeter <= 0) {
-                return;
-            }
-
-            function perimeterPoint(t) {
-                let d = (((t % 1) + 1) % 1) * perimeter;
-
-                if (d <= straightW) {
-                    return { x: x + radius + d, y: y };
-                }
-                d -= straightW;
-
-                if (d <= arc) {
-                    const a = -Math.PI / 2 + (d / arc) * (Math.PI / 2);
-                    return {
-                        x: x + w - radius + radius * Math.cos(a),
-                        y: y + radius + radius * Math.sin(a)
-                    };
-                }
-                d -= arc;
-
-                if (d <= straightH) {
-                    return { x: x + w, y: y + radius + d };
-                }
-                d -= straightH;
-
-                if (d <= arc) {
-                    const a = (d / arc) * (Math.PI / 2);
-                    return {
-                        x: x + w - radius + radius * Math.cos(a),
-                        y: y + h - radius + radius * Math.sin(a)
-                    };
-                }
-                d -= arc;
-
-                if (d <= straightW) {
-                    return { x: x + w - radius - d, y: y + h };
-                }
-                d -= straightW;
-
-                if (d <= arc) {
-                    const a = Math.PI / 2 + (d / arc) * (Math.PI / 2);
-                    return {
-                        x: x + radius + radius * Math.cos(a),
-                        y: y + h - radius + radius * Math.sin(a)
-                    };
-                }
-                d -= arc;
-
-                if (d <= straightH) {
-                    return { x: x, y: y + h - radius - d };
-                }
-                d -= straightH;
-
-                const a = Math.PI + (d / arc) * (Math.PI / 2);
-                return {
-                    x: x + radius + radius * Math.cos(a),
-                    y: y + radius + radius * Math.sin(a)
-                };
-            }
-
-            // Trail: several dots with decreasing opacity.
-            for (let k = 7; k >= 0; k--) {
-                const point = perimeterPoint(neonCanvas.progress - k * 0.016);
-                const strength = 1 - k / 8;
-                ctx.beginPath();
-                ctx.arc(point.x, point.y,
-                    Math.max(1, body.lineWidth * (0.45 + 0.75 * strength)),
-                    0, Math.PI * 2);
-                ctx.fillStyle = Qt.rgba(1, 1, 1, 0.08 + 0.52 * strength * strength);
-                ctx.fill();
-            }
-
-            // Neon head with a halo.
-            const head = perimeterPoint(neonCanvas.progress);
-            const glowRadius = Math.max(2, body.lineWidth * 2.4);
-            const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                head.x, head.y, glowRadius);
-            glow.addColorStop(0, "rgba(255,255,255,0.85)");
-            glow.addColorStop(0.4, "rgba(255,255,255,0.30)");
-            glow.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
         }
     }
 
     // Twin comet: two comets crossing the fill in opposite directions.
-    Canvas {
-        id: twinCanvas
-
-        objectName: "twinCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.twinCometAnim
         z: 2
+        active: root.twinCometAnim
+        sourceComponent: Component {
+            Canvas {
+                id: twinCanvas
 
-        property real progress: 0
+                objectName: "twinCanvas"
+                anchors.fill: parent
+                visible: root.twinCometAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real progress: 0
 
-        Timer {
-            interval: 40
-            repeat: true
-            running: twinCanvas.visible
-            onTriggered: {
-                twinCanvas.progress += 0.012;
-                if (twinCanvas.progress > 1.15) {
-                    twinCanvas.progress = 0;
-                }
-                twinCanvas.requestPaint();
-            }
-        }
+                onVisibleChanged: if (visible) requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            const fr = root.fillRect;
-            if (!root.twinCometAnim || fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const shortSide = root.vertical ? fr.width : fr.height;
-            const glowRadius = Math.max(2.5, shortSide * 0.34);
-            const trail = 0.34;
-
-            function pathPoint(t) {
-                if (root.vertical) {
-                    return {
-                        x: fr.x + fr.width / 2 + Math.sin(t * Math.PI * 2) * fr.width * 0.15,
-                        y: fr.y + fr.height * (1 - t)
-                    };
-                }
-                return {
-                    x: fr.x + fr.width * t,
-                    y: fr.y + fr.height / 2 + Math.sin(t * Math.PI * 2) * fr.height * 0.15
-                };
-            }
-
-            function drawComet(headT, tailT) {
-                if (headT < 0 || headT > 1) {
-                    return;
-                }
-                const head = pathPoint(headT);
-                const tail = pathPoint(Math.max(0, Math.min(1, tailT)));
-
-                if (Math.abs(head.x - tail.x) + Math.abs(head.y - tail.y) > 1) {
-                    const gradient = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
-                    gradient.addColorStop(0, "rgba(255,255,255,0)");
-                    gradient.addColorStop(0.6, "rgba(255,255,255,0.20)");
-                    gradient.addColorStop(1, "rgba(255,255,255,0.65)");
-                    ctx.strokeStyle = gradient;
-                    ctx.lineWidth = Math.max(1.2, shortSide * 0.09);
-                    ctx.lineCap = "round";
-                    ctx.beginPath();
-                    ctx.moveTo(tail.x, tail.y);
-                    ctx.lineTo(head.x, head.y);
-                    ctx.stroke();
+                Timer {
+                    interval: 40
+                    repeat: true
+                    running: twinCanvas.visible
+                    onTriggered: {
+                        twinCanvas.progress += 0.012;
+                        if (twinCanvas.progress > 1.15) {
+                            twinCanvas.progress = 0;
+                        }
+                        twinCanvas.requestPaint();
+                    }
                 }
 
-                const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                    head.x, head.y, glowRadius);
-                glow.addColorStop(0, "rgba(255,255,255,0.85)");
-                glow.addColorStop(0.35, "rgba(255,255,255,0.30)");
-                glow.addColorStop(1, "rgba(255,255,255,0)");
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-                ctx.fill();
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.twinCometAnim || fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const shortSide = root.vertical ? fr.width : fr.height;
+                    const glowRadius = Math.max(2.5, shortSide * 0.34);
+                    const trail = 0.34;
+
+                    function pathPoint(t) {
+                        if (root.vertical) {
+                            return {
+                                x: fr.x + fr.width / 2 + Math.sin(t * Math.PI * 2) * fr.width * 0.15,
+                                y: fr.y + fr.height * (1 - t)
+                            };
+                        }
+                        return {
+                            x: fr.x + fr.width * t,
+                            y: fr.y + fr.height / 2 + Math.sin(t * Math.PI * 2) * fr.height * 0.15
+                        };
+                    }
+
+                    function drawComet(headT, tailT) {
+                        if (headT < 0 || headT > 1) {
+                            return;
+                        }
+                        const head = pathPoint(headT);
+                        const tail = pathPoint(Math.max(0, Math.min(1, tailT)));
+
+                        if (Math.abs(head.x - tail.x) + Math.abs(head.y - tail.y) > 1) {
+                            const gradient = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
+                            gradient.addColorStop(0, "rgba(255,255,255,0)");
+                            gradient.addColorStop(0.6, "rgba(255,255,255,0.20)");
+                            gradient.addColorStop(1, "rgba(255,255,255,0.65)");
+                            ctx.strokeStyle = gradient;
+                            ctx.lineWidth = Math.max(1.2, shortSide * 0.09);
+                            ctx.lineCap = "round";
+                            ctx.beginPath();
+                            ctx.moveTo(tail.x, tail.y);
+                            ctx.lineTo(head.x, head.y);
+                            ctx.stroke();
+                        }
+
+                        const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                            head.x, head.y, glowRadius);
+                        glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                        glow.addColorStop(0.35, "rgba(255,255,255,0.30)");
+                        glow.addColorStop(1, "rgba(255,255,255,0)");
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    drawComet(twinCanvas.progress, twinCanvas.progress - trail);
+                    drawComet(1 - twinCanvas.progress, 1 - twinCanvas.progress + trail);
+
+                    ctx.restore();
+                }
             }
-
-            drawComet(twinCanvas.progress, twinCanvas.progress - trail);
-            drawComet(1 - twinCanvas.progress, 1 - twinCanvas.progress + trail);
-
-            ctx.restore();
         }
     }
 
     // Snake: a persistent wavy trail that turns around at the edges.
-    Canvas {
-        id: snakeCanvas
-
-        objectName: "snakeCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.snakeAnim
         z: 2
+        active: root.snakeAnim
+        sourceComponent: Component {
+            Canvas {
+                id: snakeCanvas
 
-        property real phase: 0
+                objectName: "snakeCanvas"
+                anchors.fill: parent
+                visible: root.snakeAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: snakeCanvas.visible
-            onTriggered: {
-                snakeCanvas.phase += 0.030;
-                snakeCanvas.requestPaint();
-            }
-        }
+                onVisibleChanged: if (visible) requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            const fr = root.fillRect;
-            if (!root.snakeAnim || fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const shortSide = root.vertical ? fr.width : fr.height;
-            const headT = 0.5 - 0.5 * Math.cos(snakeCanvas.phase);
-            const dir = Math.sin(snakeCanvas.phase) >= 0 ? 1 : -1;
-            const count = 20;
-
-            function snakePoint(t) {
-                const p = Math.max(0, Math.min(1, t));
-                if (root.vertical) {
-                    return {
-                        x: fr.x + fr.width / 2 + Math.sin(p * Math.PI * 2.4) * fr.width * 0.28,
-                        y: fr.y + fr.height * (1 - p)
-                    };
+                Timer {
+                    interval: 45
+                    repeat: true
+                    running: snakeCanvas.visible
+                    onTriggered: {
+                        snakeCanvas.phase += 0.030;
+                        snakeCanvas.requestPaint();
+                    }
                 }
-                return {
-                    x: fr.x + fr.width * p,
-                    y: fr.y + fr.height / 2 + Math.sin(p * Math.PI * 2.4) * fr.height * 0.28
-                };
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.snakeAnim || fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const shortSide = root.vertical ? fr.width : fr.height;
+                    const headT = 0.5 - 0.5 * Math.cos(snakeCanvas.phase);
+                    const dir = Math.sin(snakeCanvas.phase) >= 0 ? 1 : -1;
+                    const count = 20;
+
+                    function snakePoint(t) {
+                        const p = Math.max(0, Math.min(1, t));
+                        if (root.vertical) {
+                            return {
+                                x: fr.x + fr.width / 2 + Math.sin(p * Math.PI * 2.4) * fr.width * 0.28,
+                                y: fr.y + fr.height * (1 - p)
+                            };
+                        }
+                        return {
+                            x: fr.x + fr.width * p,
+                            y: fr.y + fr.height / 2 + Math.sin(p * Math.PI * 2.4) * fr.height * 0.28
+                        };
+                    }
+
+                    const head = snakePoint(headT);
+                    let previous = head;
+                    for (let i = 1; i <= count; i++) {
+                        const point = snakePoint(headT - dir * i * 0.014);
+                        const strength = 1 - i / (count + 1);
+                        ctx.beginPath();
+                        ctx.moveTo(previous.x, previous.y);
+                        ctx.lineTo(point.x, point.y);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.05 + 0.55 * strength * strength);
+                        ctx.lineWidth = Math.max(1, shortSide * (0.05 + 0.07 * strength));
+                        ctx.lineCap = "round";
+                        ctx.stroke();
+                        previous = point;
+                    }
+
+                    const glowRadius = Math.max(2.2, shortSide * 0.30);
+                    const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                        head.x, head.y, glowRadius);
+                    glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                    glow.addColorStop(0.35, "rgba(255,255,255,0.28)");
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
             }
-
-            const head = snakePoint(headT);
-            let previous = head;
-            for (let i = 1; i <= count; i++) {
-                const point = snakePoint(headT - dir * i * 0.014);
-                const strength = 1 - i / (count + 1);
-                ctx.beginPath();
-                ctx.moveTo(previous.x, previous.y);
-                ctx.lineTo(point.x, point.y);
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.05 + 0.55 * strength * strength);
-                ctx.lineWidth = Math.max(1, shortSide * (0.05 + 0.07 * strength));
-                ctx.lineCap = "round";
-                ctx.stroke();
-                previous = point;
-            }
-
-            const glowRadius = Math.max(2.2, shortSide * 0.30);
-            const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                head.x, head.y, glowRadius);
-            glow.addColorStop(0, "rgba(255,255,255,0.85)");
-            glow.addColorStop(0.35, "rgba(255,255,255,0.28)");
-            glow.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
         }
     }
 
     // Orbit: glowing electrons circling inside the fill.
-    Canvas {
-        id: orbitCanvas
-
-        objectName: "orbitCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.orbitAnim
         z: 2
+        active: root.orbitAnim
+        sourceComponent: Component {
+            Canvas {
+                id: orbitCanvas
 
-        property real phase: 0
+                objectName: "orbitCanvas"
+                anchors.fill: parent
+                visible: root.orbitAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: orbitCanvas.visible
-            onTriggered: {
-                orbitCanvas.phase += 0.030;
-                orbitCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 45
+                    repeat: true
+                    running: orbitCanvas.visible
+                    onTriggered: {
+                        orbitCanvas.phase += 0.030;
+                        orbitCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.orbitAnim || fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const cx = fr.x + fr.width / 2;
+                    const cy = fr.y + fr.height / 2;
+                    const rx = fr.width * 0.34;
+                    const ry = fr.height * 0.32;
+                    const shortSide = Math.min(fr.width, fr.height);
+
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.scale(1, ry / rx);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, rx, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+                    ctx.lineWidth = Math.max(0.8, shortSide * 0.02);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    const glowRadius = Math.max(2, shortSide * 0.30);
+                    for (let k = 0; k < 3; k++) {
+                        const angle = orbitCanvas.phase + k * Math.PI * 2 / 3;
+                        const x = cx + Math.cos(angle) * rx;
+                        const y = cy + Math.sin(angle) * ry;
+                        const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+                        glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                        glow.addColorStop(0.35, "rgba(255,255,255,0.28)");
+                        glow.addColorStop(1, "rgba(255,255,255,0)");
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            const fr = root.fillRect;
-            if (!root.orbitAnim || fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const cx = fr.x + fr.width / 2;
-            const cy = fr.y + fr.height / 2;
-            const rx = fr.width * 0.34;
-            const ry = fr.height * 0.32;
-            const shortSide = Math.min(fr.width, fr.height);
-
-            ctx.save();
-            ctx.translate(cx, cy);
-            ctx.scale(1, ry / rx);
-            ctx.beginPath();
-            ctx.arc(0, 0, rx, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(255,255,255,0.10)";
-            ctx.lineWidth = Math.max(0.8, shortSide * 0.02);
-            ctx.stroke();
-            ctx.restore();
-
-            const glowRadius = Math.max(2, shortSide * 0.30);
-            for (let k = 0; k < 3; k++) {
-                const angle = orbitCanvas.phase + k * Math.PI * 2 / 3;
-                const x = cx + Math.cos(angle) * rx;
-                const y = cy + Math.sin(angle) * ry;
-                const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
-                glow.addColorStop(0, "rgba(255,255,255,0.85)");
-                glow.addColorStop(0.35, "rgba(255,255,255,0.28)");
-                glow.addColorStop(1, "rgba(255,255,255,0)");
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.restore();
         }
     }
 
     // Spiral: a light point opens outwards from the center in a spiral.
-    Canvas {
-        id: spiralCanvas
-
-        objectName: "spiralCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.spiralAnim
         z: 2
+        active: root.spiralAnim
+        sourceComponent: Component {
+            Canvas {
+                id: spiralCanvas
 
-        property real phase: 0
+                objectName: "spiralCanvas"
+                anchors.fill: parent
+                visible: root.spiralAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: spiralCanvas.visible
-            onTriggered: {
-                spiralCanvas.phase = (spiralCanvas.phase + 0.020) % 1;
-                spiralCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 36
+                    repeat: true
+                    running: spiralCanvas.visible && root.animating
+                    onTriggered: {
+                        spiralCanvas.phase = (spiralCanvas.phase + 0.028) % 1;
+                        spiralCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.spiralAnim || fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const cx = fr.x + fr.width / 2;
+                    const cy = fr.y + fr.height / 2;
+                    const rx = fr.width * 0.44;
+                    const ry = fr.height * 0.42;
+                    const shortSide = Math.min(fr.width, fr.height);
+                    const headT = spiralCanvas.phase;
+
+                    function spiralPoint(t) {
+                        const p = Math.max(0, Math.min(1, t));
+                        const angle = p * Math.PI * 4.4;
+                        return {
+                            x: cx + Math.cos(angle) * rx * p,
+                            y: cy + Math.sin(angle) * ry * p
+                        };
+                    }
+
+                    const head = spiralPoint(headT);
+                    let previous = head;
+                    for (let i = 1; i <= 30; i++) {
+                        const point = spiralPoint(headT - i * 0.008);
+                        const strength = 1 - i / 31;
+                        ctx.beginPath();
+                        ctx.moveTo(previous.x, previous.y);
+                        ctx.lineTo(point.x, point.y);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.08 + 0.58 * strength * strength);
+                        ctx.lineWidth = Math.max(1, shortSide * (0.06 + 0.07 * strength));
+                        ctx.lineCap = "round";
+                        ctx.stroke();
+                        previous = point;
+                    }
+
+                    const glowRadius = Math.max(2, shortSide * 0.28);
+                    const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                        head.x, head.y, glowRadius);
+                    glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                    glow.addColorStop(0.4, "rgba(255,255,255,0.25)");
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            const fr = root.fillRect;
-            if (!root.spiralAnim || fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const cx = fr.x + fr.width / 2;
-            const cy = fr.y + fr.height / 2;
-            const rx = fr.width * 0.44;
-            const ry = fr.height * 0.42;
-            const shortSide = Math.min(fr.width, fr.height);
-            const headT = spiralCanvas.phase;
-
-            function spiralPoint(t) {
-                const p = Math.max(0, Math.min(1, t));
-                const angle = p * Math.PI * 4.4;
-                return {
-                    x: cx + Math.cos(angle) * rx * p,
-                    y: cy + Math.sin(angle) * ry * p
-                };
-            }
-
-            const head = spiralPoint(headT);
-            let previous = head;
-            for (let i = 1; i <= 22; i++) {
-                const point = spiralPoint(headT - i * 0.010);
-                const strength = 1 - i / 23;
-                ctx.beginPath();
-                ctx.moveTo(previous.x, previous.y);
-                ctx.lineTo(point.x, point.y);
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.06 + 0.50 * strength * strength);
-                ctx.lineWidth = Math.max(1, shortSide * (0.05 + 0.06 * strength));
-                ctx.lineCap = "round";
-                ctx.stroke();
-                previous = point;
-            }
-
-            const glowRadius = Math.max(2, shortSide * 0.28);
-            const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                head.x, head.y, glowRadius);
-            glow.addColorStop(0, "rgba(255,255,255,0.85)");
-            glow.addColorStop(0.4, "rgba(255,255,255,0.25)");
-            glow.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
         }
     }
 
     // Pendulum: a glowing bob swings across the fill with a short trail.
-    Canvas {
-        id: pendulumCanvas
-
-        objectName: "pendulumCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.pendulumAnim
         z: 2
+        active: root.pendulumAnim
+        sourceComponent: Component {
+            Canvas {
+                id: pendulumCanvas
 
-        property real phase: 0
+                objectName: "pendulumCanvas"
+                anchors.fill: parent
+                visible: root.pendulumAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: pendulumCanvas.visible
-            onTriggered: {
-                pendulumCanvas.phase += 0.045;
-                pendulumCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 34
+                    repeat: true
+                    running: pendulumCanvas.visible && root.animating
+                    onTriggered: {
+                        pendulumCanvas.phase += 0.062;
+                        pendulumCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.pendulumAnim || fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const cx = fr.x + fr.width / 2;
+                    const pivotY = fr.y + fr.height * 0.1;
+                    const length = fr.height * 0.88;
+                    const maxAngle = 0.98;
+                    const shortSide = Math.min(fr.width, fr.height);
+
+                    function bobPoint(p) {
+                        const a = Math.sin(p) * maxAngle;
+                        return {
+                            x: cx + Math.sin(a) * length,
+                            y: pivotY + Math.cos(a) * length
+                        };
+                    }
+
+                    const head = bobPoint(pendulumCanvas.phase);
+
+                    // Rod.
+                    ctx.beginPath();
+                    ctx.moveTo(cx, pivotY);
+                    ctx.lineTo(head.x, head.y);
+                    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+                    ctx.lineWidth = Math.max(0.9, shortSide * 0.038);
+                    ctx.stroke();
+
+                    // Trail.
+                    for (let k = 12; k >= 1; k--) {
+                        const point = bobPoint(pendulumCanvas.phase - k * 0.055);
+                        const strength = 1 - k / 13;
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y,
+                            Math.max(1.2, shortSide * (0.07 + 0.14 * strength)),
+                            0, Math.PI * 2);
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.09 + 0.48 * strength * strength);
+                        ctx.fill();
+                    }
+
+                    const glowRadius = Math.max(2.8, shortSide * 0.38);
+                    const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                        head.x, head.y, glowRadius);
+                    glow.addColorStop(0, "rgba(255,255,255,0.92)");
+                    glow.addColorStop(0.4, "rgba(255,255,255,0.3)");
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            const fr = root.fillRect;
-            if (!root.pendulumAnim || fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const cx = fr.x + fr.width / 2;
-            const pivotY = fr.y + fr.height * 0.14;
-            const length = fr.height * 0.80;
-            const maxAngle = 0.85;
-            const shortSide = Math.min(fr.width, fr.height);
-
-            function bobPoint(p) {
-                const a = Math.sin(p) * maxAngle;
-                return {
-                    x: cx + Math.sin(a) * length,
-                    y: pivotY + Math.cos(a) * length
-                };
-            }
-
-            const head = bobPoint(pendulumCanvas.phase);
-
-            // Rod.
-            ctx.beginPath();
-            ctx.moveTo(cx, pivotY);
-            ctx.lineTo(head.x, head.y);
-            ctx.strokeStyle = "rgba(255,255,255,0.12)";
-            ctx.lineWidth = Math.max(0.8, shortSide * 0.03);
-            ctx.stroke();
-
-            // Trail.
-            for (let k = 8; k >= 1; k--) {
-                const point = bobPoint(pendulumCanvas.phase - k * 0.075);
-                const strength = 1 - k / 9;
-                ctx.beginPath();
-                ctx.arc(point.x, point.y,
-                    Math.max(1, shortSide * (0.05 + 0.10 * strength)),
-                    0, Math.PI * 2);
-                ctx.fillStyle = Qt.rgba(1, 1, 1, 0.05 + 0.35 * strength * strength);
-                ctx.fill();
-            }
-
-            const glowRadius = Math.max(2.2, shortSide * 0.30);
-            const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                head.x, head.y, glowRadius);
-            glow.addColorStop(0, "rgba(255,255,255,0.85)");
-            glow.addColorStop(0.4, "rgba(255,255,255,0.25)");
-            glow.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
         }
     }
 
     // Scanner: a thin bright line sweeps the fill back and forth.
-    Canvas {
-        id: scannerCanvas
-
-        objectName: "scannerCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.scannerAnim
         z: 2
+        active: root.scannerAnim
+        sourceComponent: Component {
+            Canvas {
+                id: scannerCanvas
 
-        property real phase: 0
+                objectName: "scannerCanvas"
+                anchors.fill: parent
+                visible: root.scannerAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 40
-            repeat: true
-            running: scannerCanvas.visible
-            onTriggered: {
-                scannerCanvas.phase += 0.035;
-                scannerCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 40
+                    repeat: true
+                    running: scannerCanvas.visible
+                    onTriggered: {
+                        scannerCanvas.phase += 0.035;
+                        scannerCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.scannerAnim || fr.width <= 1 || fr.height <= 1) {
+                        return;
+                    }
+
+                    ctx.save();
+                    root.clipToFill(ctx);
+
+                    const t = 0.5 - 0.5 * Math.cos(scannerCanvas.phase);
+                    const span = root.vertical ? fr.height : fr.width;
+                    const band = Math.max(3, span * 0.06);
+                    const shortSide = root.vertical ? fr.width : fr.height;
+
+                    if (root.vertical) {
+                        const y = fr.y + fr.height * (1 - t);
+                        const gradient = ctx.createLinearGradient(0, y - band, 0, y + band);
+                        gradient.addColorStop(0, "rgba(255,255,255,0)");
+                        gradient.addColorStop(0.5, "rgba(255,255,255,0.28)");
+                        gradient.addColorStop(1, "rgba(255,255,255,0)");
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(fr.x, y - band, fr.width, band * 2);
+
+                        ctx.beginPath();
+                        ctx.moveTo(fr.x, y);
+                        ctx.lineTo(fr.x + fr.width, y);
+                    } else {
+                        const x = fr.x + fr.width * t;
+                        const gradient = ctx.createLinearGradient(x - band, 0, x + band, 0);
+                        gradient.addColorStop(0, "rgba(255,255,255,0)");
+                        gradient.addColorStop(0.5, "rgba(255,255,255,0.28)");
+                        gradient.addColorStop(1, "rgba(255,255,255,0)");
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(x - band, fr.y, band * 2, fr.height);
+
+                        ctx.beginPath();
+                        ctx.moveTo(x, fr.y);
+                        ctx.lineTo(x, fr.y + fr.height);
+                    }
+
+                    ctx.strokeStyle = "rgba(255,255,255,0.75)";
+                    ctx.lineWidth = Math.max(1, shortSide * 0.05);
+                    ctx.shadowColor = "#ffffff";
+                    ctx.shadowBlur = Math.max(3, shortSide * 0.4);
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            const fr = root.fillRect;
-            if (!root.scannerAnim || fr.width <= 1 || fr.height <= 1) {
-                return;
-            }
-
-            ctx.save();
-            root.clipToFill(ctx);
-
-            const t = 0.5 - 0.5 * Math.cos(scannerCanvas.phase);
-            const span = root.vertical ? fr.height : fr.width;
-            const band = Math.max(3, span * 0.06);
-            const shortSide = root.vertical ? fr.width : fr.height;
-
-            if (root.vertical) {
-                const y = fr.y + fr.height * (1 - t);
-                const gradient = ctx.createLinearGradient(0, y - band, 0, y + band);
-                gradient.addColorStop(0, "rgba(255,255,255,0)");
-                gradient.addColorStop(0.5, "rgba(255,255,255,0.28)");
-                gradient.addColorStop(1, "rgba(255,255,255,0)");
-                ctx.fillStyle = gradient;
-                ctx.fillRect(fr.x, y - band, fr.width, band * 2);
-
-                ctx.beginPath();
-                ctx.moveTo(fr.x, y);
-                ctx.lineTo(fr.x + fr.width, y);
-            } else {
-                const x = fr.x + fr.width * t;
-                const gradient = ctx.createLinearGradient(x - band, 0, x + band, 0);
-                gradient.addColorStop(0, "rgba(255,255,255,0)");
-                gradient.addColorStop(0.5, "rgba(255,255,255,0.28)");
-                gradient.addColorStop(1, "rgba(255,255,255,0)");
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x - band, fr.y, band * 2, fr.height);
-
-                ctx.beginPath();
-                ctx.moveTo(x, fr.y);
-                ctx.lineTo(x, fr.y + fr.height);
-            }
-
-            ctx.strokeStyle = "rgba(255,255,255,0.75)";
-            ctx.lineWidth = Math.max(1, shortSide * 0.05);
-            ctx.shadowColor = "#ffffff";
-            ctx.shadowBlur = Math.max(3, shortSide * 0.4);
-            ctx.stroke();
-
-            ctx.restore();
         }
     }
 
     // Twin neon: two points of light travel around the outline, opposite
     // each other.
-    Canvas {
-        id: neonTwinCanvas
-
-        objectName: "neonTwinCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.neonTwinAnim
         z: 2
+        active: root.neonTwinAnim
+        sourceComponent: Component {
+            Canvas {
+                id: neonTwinCanvas
 
-        property real progress: 0
+                objectName: "neonTwinCanvas"
+                anchors.fill: parent
+                visible: root.neonTwinAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real progress: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: neonTwinCanvas.visible
-            onTriggered: {
-                neonTwinCanvas.progress = (neonTwinCanvas.progress + 0.018) % 1;
-                neonTwinCanvas.requestPaint();
-            }
-        }
+                onVisibleChanged: if (visible) requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.neonTwinAnim || width <= 2 || height <= 2) {
-                return;
-            }
-
-            function drawHead(t) {
-                for (let k = 7; k >= 0; k--) {
-                    const point = root.perimeterPoint(t - k * 0.016);
-                    const strength = 1 - k / 8;
-                    ctx.beginPath();
-                    ctx.arc(point.x, point.y,
-                        Math.max(1, body.lineWidth * (0.45 + 0.75 * strength)),
-                        0, Math.PI * 2);
-                    ctx.fillStyle = Qt.rgba(1, 1, 1, 0.08 + 0.52 * strength * strength);
-                    ctx.fill();
+                Timer {
+                    interval: 45
+                    repeat: true
+                    running: neonTwinCanvas.visible
+                    onTriggered: {
+                        neonTwinCanvas.progress = (neonTwinCanvas.progress + 0.018) % 1;
+                        neonTwinCanvas.requestPaint();
+                    }
                 }
 
-                const head = root.perimeterPoint(t);
-                const glowRadius = Math.max(2, body.lineWidth * 2.4);
-                const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                    head.x, head.y, glowRadius);
-                glow.addColorStop(0, "rgba(255,255,255,0.85)");
-                glow.addColorStop(0.4, "rgba(255,255,255,0.30)");
-                glow.addColorStop(1, "rgba(255,255,255,0)");
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.neonTwinAnim || width <= 2 || height <= 2) {
+                        return;
+                    }
 
-            drawHead(neonTwinCanvas.progress);
-            drawHead(neonTwinCanvas.progress + 0.5);
+                    function drawHead(t) {
+                        for (let k = 7; k >= 0; k--) {
+                            const point = root.perimeterPoint(t - k * 0.016);
+                            const strength = 1 - k / 8;
+                            ctx.beginPath();
+                            ctx.arc(point.x, point.y,
+                                Math.max(1, body.lineWidth * (0.45 + 0.75 * strength)),
+                                0, Math.PI * 2);
+                            ctx.fillStyle = Qt.rgba(1, 1, 1, 0.08 + 0.52 * strength * strength);
+                            ctx.fill();
+                        }
+
+                        const head = root.perimeterPoint(t);
+                        const glowRadius = Math.max(2, body.lineWidth * 2.4);
+                        const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                            head.x, head.y, glowRadius);
+                        glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                        glow.addColorStop(0.4, "rgba(255,255,255,0.30)");
+                        glow.addColorStop(1, "rgba(255,255,255,0)");
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    drawHead(neonTwinCanvas.progress);
+                    drawHead(neonTwinCanvas.progress + 0.5);
+                }
+            }
         }
     }
 
     // Neon wave: a lit segment of the outline travels around the body.
-    Canvas {
-        id: neonWaveCanvas
-
-        objectName: "neonWaveCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.neonWaveAnim
         z: 2
+        active: root.neonWaveAnim
+        sourceComponent: Component {
+            Canvas {
+                id: neonWaveCanvas
 
-        property real progress: 0
+                objectName: "neonWaveCanvas"
+                anchors.fill: parent
+                visible: root.neonWaveAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real progress: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: neonWaveCanvas.visible
-            onTriggered: {
-                neonWaveCanvas.progress = (neonWaveCanvas.progress + 0.012) % 1;
-                neonWaveCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 45
+                    repeat: true
+                    running: neonWaveCanvas.visible
+                    onTriggered: {
+                        neonWaveCanvas.progress = (neonWaveCanvas.progress + 0.012) % 1;
+                        neonWaveCanvas.requestPaint();
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.neonWaveAnim || width <= 2 || height <= 2) {
+                        return;
+                    }
+
+                    const span = 0.20;
+                    const samples = 26;
+                    let previous = root.perimeterPoint(neonWaveCanvas.progress - span);
+
+                    for (let i = 1; i <= samples; i++) {
+                        const t = neonWaveCanvas.progress - span + span * i / samples;
+                        const point = root.perimeterPoint(t);
+                        const strength = i / samples;
+
+                        ctx.beginPath();
+                        ctx.moveTo(previous.x, previous.y);
+                        ctx.lineTo(point.x, point.y);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.04 + 0.62 * strength * strength);
+                        ctx.lineWidth = Math.max(1.4, body.lineWidth * (0.9 + 1.1 * strength));
+                        ctx.lineCap = "round";
+                        ctx.stroke();
+                        previous = point;
+                    }
+
+                    const head = root.perimeterPoint(neonWaveCanvas.progress);
+                    const glowRadius = Math.max(2, body.lineWidth * 2.6);
+                    const glow = ctx.createRadialGradient(head.x, head.y, 0,
+                        head.x, head.y, glowRadius);
+                    glow.addColorStop(0, "rgba(255,255,255,0.85)");
+                    glow.addColorStop(0.4, "rgba(255,255,255,0.28)");
+                    glow.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
-        }
-
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.neonWaveAnim || width <= 2 || height <= 2) {
-                return;
-            }
-
-            const span = 0.20;
-            const samples = 26;
-            let previous = root.perimeterPoint(neonWaveCanvas.progress - span);
-
-            for (let i = 1; i <= samples; i++) {
-                const t = neonWaveCanvas.progress - span + span * i / samples;
-                const point = root.perimeterPoint(t);
-                const strength = i / samples;
-
-                ctx.beginPath();
-                ctx.moveTo(previous.x, previous.y);
-                ctx.lineTo(point.x, point.y);
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.04 + 0.62 * strength * strength);
-                ctx.lineWidth = Math.max(1.4, body.lineWidth * (0.9 + 1.1 * strength));
-                ctx.lineCap = "round";
-                ctx.stroke();
-                previous = point;
-            }
-
-            const head = root.perimeterPoint(neonWaveCanvas.progress);
-            const glowRadius = Math.max(2, body.lineWidth * 2.6);
-            const glow = ctx.createRadialGradient(head.x, head.y, 0,
-                head.x, head.y, glowRadius);
-            glow.addColorStop(0, "rgba(255,255,255,0.85)");
-            glow.addColorStop(0.4, "rgba(255,255,255,0.28)");
-            glow.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(head.x, head.y, glowRadius, 0, Math.PI * 2);
-            ctx.fill();
         }
     }
 
     // Perimeter bolt: a small zigzag lightning travels around the outline.
-    Canvas {
-        id: neonBoltCanvas
-
-        objectName: "neonBoltCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.neonBoltAnim
         z: 2
+        active: root.neonBoltAnim
+        sourceComponent: Component {
+            Canvas {
+                id: neonBoltCanvas
 
-        property real progress: 0
+                objectName: "neonBoltCanvas"
+                anchors.fill: parent
+                visible: root.neonBoltAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real progress: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: neonBoltCanvas.visible
-            onTriggered: {
-                neonBoltCanvas.progress = (neonBoltCanvas.progress + 0.016) % 1;
-                neonBoltCanvas.requestPaint();
-            }
-        }
+                onVisibleChanged: if (visible) requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.neonBoltAnim || width <= 2 || height <= 2) {
-                return;
-            }
+                Timer {
+                    interval: 32
+                    repeat: true
+                    running: neonBoltCanvas.visible && root.animating
+                    onTriggered: {
+                        neonBoltCanvas.progress = (neonBoltCanvas.progress + 0.028) % 1;
+                        neonBoltCanvas.requestPaint();
+                    }
+                }
 
-            const head = root.perimeterPoint(neonBoltCanvas.progress);
-            const behind = root.perimeterPoint(neonBoltCanvas.progress - 0.004);
-            let tx = head.x - behind.x;
-            let ty = head.y - behind.y;
-            const length = Math.max(1, Math.sqrt(tx * tx + ty * ty));
-            tx /= length;
-            ty /= length;
-            const px = -ty;
-            const py = tx;
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.neonBoltAnim || width <= 2 || height <= 2) {
+                        return;
+                    }
 
-            const boltLength = Math.max(4, body.thickness * 1.1);
-            const boltWidth = Math.max(2, body.thickness * 0.35);
-            const points = [
-                [-0.5, 0],
-                [-0.18, 1],
-                [0.10, -1],
-                [0.5, 0]
-            ];
+                    const head = root.perimeterPoint(neonBoltCanvas.progress);
+                    const behind = root.perimeterPoint(neonBoltCanvas.progress - 0.006);
+                    let tx = head.x - behind.x;
+                    let ty = head.y - behind.y;
+                    const length = Math.max(1, Math.sqrt(tx * tx + ty * ty));
+                    tx /= length;
+                    ty /= length;
+                    const px = -ty;
+                    const py = tx;
 
-            ctx.beginPath();
-            for (let i = 0; i < points.length; i++) {
-                const along = points[i][0] * boltLength;
-                const side = points[i][1] * boltWidth * 0.5;
-                const x = head.x + tx * along + px * side;
-                const y = head.y + ty * along + py * side;
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
+                    const boltLength = Math.max(5, body.thickness * 1.4);
+                    const boltWidth = Math.max(2.6, body.thickness * 0.5);
+                    const jitter = boltWidth * (0.7 + Math.random() * 0.5);
+                    const points = [
+                        [-0.6, 0],
+                        [-0.28, 1.0 + Math.random() * 0.2],
+                        [0.0, -0.6 + Math.random() * 0.3],
+                        [0.18, 0.95],
+                        [0.42, -1.0 + Math.random() * 0.3],
+                        [0.72, 0.6]
+                    ];
+
+                    ctx.beginPath();
+                    for (let i = 0; i < points.length; i++) {
+                        const along = points[i][0] * boltLength;
+                        const side = points[i][1] * jitter;
+                        const x = head.x + tx * along + px * side;
+                        const y = head.y + ty * along + py * side;
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+
+                    ctx.lineCap = "round";
+                    ctx.lineJoin = "round";
+                    ctx.shadowColor = "#f0fdff";
+                    ctx.shadowBlur = Math.max(5, body.thickness * 0.7);
+
+                    ctx.lineWidth = Math.max(3, body.thickness * 0.24);
+                    ctx.strokeStyle = "rgba(220,248,255,0.42)";
+                    ctx.stroke();
+
+                    ctx.lineWidth = Math.max(1.4, body.thickness * 0.1);
+                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.95);
+                    ctx.stroke();
+
+                    ctx.shadowBlur = 0;
                 }
             }
-
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.shadowColor = "#cfefff";
-            ctx.shadowBlur = Math.max(3, body.thickness * 0.5);
-
-            ctx.lineWidth = Math.max(2, body.thickness * 0.16);
-            ctx.strokeStyle = "rgba(200,240,255,0.30)";
-            ctx.stroke();
-
-            ctx.lineWidth = Math.max(1, body.thickness * 0.06);
-            ctx.strokeStyle = "rgba(255,255,255,0.90)";
-            ctx.stroke();
-
-            ctx.shadowBlur = 0;
         }
     }
 
     // Neon spin: a rotating band of light runs around the whole outline.
-    Canvas {
-        id: neonSpinCanvas
-
-        objectName: "neonSpinCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.neonSpinAnim
         z: 2
+        active: root.neonSpinAnim
+        sourceComponent: Component {
+            Canvas {
+                id: neonSpinCanvas
 
-        property real phase: 0
+                objectName: "neonSpinCanvas"
+                anchors.fill: parent
+                visible: root.neonSpinAnim
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        onVisibleChanged: if (visible) requestPaint()
+                property real phase: 0
 
-        Timer {
-            interval: 45
-            repeat: true
-            running: neonSpinCanvas.visible
-            onTriggered: {
-                neonSpinCanvas.phase += 0.030;
-                neonSpinCanvas.requestPaint();
-            }
-        }
+                onVisibleChanged: if (visible) requestPaint()
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.neonSpinAnim || width <= 2 || height <= 2) {
-                return;
-            }
+                Timer {
+                    interval: 28
+                    repeat: true
+                    running: neonSpinCanvas.visible && root.animating
+                    onTriggered: {
+                        neonSpinCanvas.phase += 0.085;
+                        neonSpinCanvas.requestPaint();
+                    }
+                }
 
-            // Faint base outline so the whole body is always visible.
-            ctx.beginPath();
-            for (let i = 0; i <= 64; i++) {
-                const point = root.perimeterPoint(i / 64);
-                if (i === 0) {
-                    ctx.moveTo(point.x, point.y);
-                } else {
-                    ctx.lineTo(point.x, point.y);
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.neonSpinAnim || width <= 2 || height <= 2) {
+                        return;
+                    }
+
+                    // Faint base outline so the whole body is always visible.
+                    ctx.beginPath();
+                    for (let i = 0; i <= 64; i++) {
+                        const point = root.perimeterPoint(i / 64);
+                        if (i === 0) {
+                            ctx.moveTo(point.x, point.y);
+                        } else {
+                            ctx.lineTo(point.x, point.y);
+                        }
+                    }
+                    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+                    ctx.lineWidth = Math.max(1, body.lineWidth * 1.1);
+                    ctx.stroke();
+
+                    const segments = 140;
+                    for (let i = 0; i < segments; i++) {
+                        const t0 = i / segments;
+                        const t1 = (i + 1) / segments;
+                        const a = t0 * Math.PI * 2;
+                        const wave = Math.pow(0.5 + 0.5 * Math.cos(a * 2.2 - neonSpinCanvas.phase), 2.4);
+                        const point = root.perimeterPoint(t0);
+                        const next = root.perimeterPoint(t1);
+
+                        ctx.beginPath();
+                        ctx.moveTo(point.x, point.y);
+                        ctx.lineTo(next.x, next.y);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.12 + 0.88 * wave);
+                        ctx.lineWidth = Math.max(1.4, body.lineWidth * (1.0 + 2.0 * wave));
+                        ctx.lineCap = "round";
+                        ctx.stroke();
+                    }
                 }
             }
-            ctx.strokeStyle = "rgba(255,255,255,0.10)";
-            ctx.lineWidth = Math.max(1, body.lineWidth * 1.1);
-            ctx.stroke();
+        }
+    }
 
-            const segments = 96;
-            for (let i = 0; i < segments; i++) {
-                const t0 = i / segments;
-                const t1 = (i + 1) / segments;
-                const a = t0 * Math.PI * 2;
-                const wave = Math.pow(0.5 + 0.5 * Math.cos(a * 1.0 - neonSpinCanvas.phase), 3);
-                const point = root.perimeterPoint(t0);
-                const next = root.perimeterPoint(t1);
 
-                ctx.beginPath();
-                ctx.moveTo(point.x, point.y);
-                ctx.lineTo(next.x, next.y);
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.05 + 0.70 * wave);
-                ctx.lineWidth = Math.max(1, body.lineWidth * (0.9 + 1.4 * wave));
-                ctx.lineCap = "round";
-                ctx.stroke();
+    // Firefly: tiny glowing dots drift around inside the fill
+    Loader {
+        anchors.fill: body
+        z: 2
+        active: root.fireflyAnim
+        sourceComponent: Component {
+            Canvas {
+                id: fireflyCanvas
+                anchors.fill: parent
+                visible: root.fireflyAnim
+                z: 2
+                Component.onCompleted: requestPaint()
+                property real time: 0
+                onVisibleChanged: if (visible) requestPaint()
+                Timer {
+                    interval: 36
+                    repeat: true
+                    running: fireflyCanvas.visible && root.animating
+                    onTriggered: { fireflyCanvas.time += 0.05; fireflyCanvas.requestPaint(); }
+                }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.fireflyAnim || fr.width <= 2 || fr.height <= 2) return;
+                    ctx.save();
+                    root.clipToFill(ctx);
+                    const count = 14;
+                    for (let i = 0; i < count; i++) {
+                        const seed = i * 137.5;
+                        const phase = fireflyCanvas.time + seed;
+                        const x = fr.x + (Math.sin(phase * 0.8) * 0.5 + 0.5) * fr.width;
+                        const y = fr.y + (Math.cos(phase * 0.6 + i) * 0.5 + 0.5) * fr.height;
+                        const flicker = 0.4 + 0.6 * Math.pow(0.5 + 0.5 * Math.sin(phase * 1.6), 2);
+                        const r = Math.max(1.2, Math.min(fr.width, fr.height) * (0.024 + 0.018 * flicker));
+                        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.4);
+                        g.addColorStop(0, Qt.rgba(1, 1, 1, 0.95 * flicker));
+                        g.addColorStop(0.4, Qt.rgba(1, 1, 1, 0.45 * flicker));
+                        g.addColorStop(1, Qt.rgba(1, 1, 1, 0));
+                        ctx.fillStyle = g;
+                        ctx.beginPath();
+                        ctx.arc(x, y, r * 2.4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            }
+        }
+    }
+
+    // Ripple: expanding rings
+    Loader {
+        anchors.fill: body
+        z: 2
+        active: root.rippleAnim
+        sourceComponent: Component {
+            Canvas {
+                id: rippleCanvas
+                anchors.fill: parent
+                visible: root.rippleAnim
+                z: 2
+                Component.onCompleted: requestPaint()
+                property real time: 0
+                onVisibleChanged: if (visible) { rippleCanvas.time = 0; rippleCanvas.requestPaint(); }
+                Timer {
+                    interval: 36
+                    repeat: true
+                    running: rippleCanvas.visible && root.animating
+                    onTriggered: { rippleCanvas.time += 0.06; rippleCanvas.requestPaint(); }
+                }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.rippleAnim || fr.width <= 2 || fr.height <= 2) return;
+                    ctx.save();
+                    root.clipToFill(ctx);
+                    const cx = fr.x + fr.width / 2;
+                    const cy = fr.y + fr.height / 2;
+                    const maxR = Math.max(fr.width, fr.height) * 0.7;
+                    for (let i = 0; i < 4; i++) {
+                        const t = (rippleCanvas.time + i * 0.25) % 1;
+                        const r = maxR * t;
+                        const a = (1 - t) * 0.4;
+                        if (a <= 0) continue;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, a);
+                        ctx.lineWidth = Math.max(1, maxR * 0.06 * (1 - t));
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+            }
+        }
+    }
+
+    // Aurora: shimmering waves
+    Loader {
+        anchors.fill: body
+        z: 2
+        active: root.auroraAnim
+        sourceComponent: Component {
+            Canvas {
+                id: auroraCanvas
+                anchors.fill: parent
+                visible: root.auroraAnim
+                z: 2
+                Component.onCompleted: requestPaint()
+                property real time: 0
+                onVisibleChanged: if (visible) requestPaint()
+                Timer {
+                    interval: 36
+                    repeat: true
+                    running: auroraCanvas.visible && root.animating
+                    onTriggered: { auroraCanvas.time += 0.08; auroraCanvas.requestPaint(); }
+                }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.auroraAnim || fr.width <= 2 || fr.height <= 2) return;
+                    ctx.save();
+                    root.clipToFill(ctx);
+                    for (let layer = 0; layer < 4; layer++) {
+                        const phase = auroraCanvas.time + layer * 1.1;
+                        const amp = fr.height * (0.14 + layer * 0.09);
+                        const yBase = fr.y + fr.height * (0.28 + layer * 0.18);
+                        ctx.beginPath();
+                        for (let x = fr.x; x <= fr.x + fr.width; x += 2) {
+                            const nx = (x - fr.x) / fr.width;
+                            const y = yBase + Math.sin(nx * Math.PI * 3.2 + phase) * amp * Math.sin(phase * 0.6);
+                            if (x === fr.x) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.14 + layer * 0.1);
+                        ctx.lineWidth = Math.max(2, fr.height * 0.09);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+            }
+        }
+    }
+
+    // Matrix: falling characters
+    Loader {
+        anchors.fill: body
+        z: 2
+        active: root.matrixAnim
+        sourceComponent: Component {
+            Canvas {
+                id: matrixCanvas
+                anchors.fill: parent
+                visible: root.matrixAnim
+                z: 2
+                property real time: 0
+                property var drops: []
+                Component.onCompleted: {
+                    drops = [];
+                    const fr = root.fillRect;
+                    const cols = Math.max(6, Math.floor(fr.width / 5));
+                    for (let i = 0; i < cols; i++) drops.push({ y: Math.random(), speed: 0.012 + Math.random() * 0.025 });
+                    requestPaint();
+                }
+                onVisibleChanged: {
+                    if (visible) {
+                        const fr = root.fillRect;
+                        const cols = Math.max(6, Math.floor(fr.width / 5));
+                        drops = [];
+                        for (let i = 0; i < cols; i++) drops.push({ y: Math.random(), speed: 0.012 + Math.random() * 0.025 });
+                        time = 0;
+                        requestPaint();
+                    }
+                }
+                Timer {
+                    interval: 42
+                    repeat: true
+                    running: matrixCanvas.visible && root.animating
+                    onTriggered: {
+                        matrixCanvas.time += 1;
+                        for (let i = 0; i < matrixCanvas.drops.length; i++) {
+                            matrixCanvas.drops[i].y += matrixCanvas.drops[i].speed;
+                            if (matrixCanvas.drops[i].y > 1.25) matrixCanvas.drops[i].y = Math.random() * -0.4;
+                        }
+                        matrixCanvas.requestPaint();
+                    }
+                }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    const fr = root.fillRect;
+                    if (!root.matrixAnim || fr.width <= 2 || fr.height <= 2 || !drops || drops.length === 0) return;
+                    ctx.save();
+                    root.clipToFill(ctx);
+                    ctx.font = Math.max(6, Math.floor(fr.height * 0.14)) + "px monospace";
+                    ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6);
+                    const cols = drops.length;
+                    for (let i = 0; i < cols; i++) {
+                        const x = fr.x + (i + 0.5) * (fr.width / cols);
+                        const y = fr.y + drops[i].y * fr.height;
+                        if (y < fr.y || y > fr.y + fr.height) continue;
+                        const ch = String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96));
+                        ctx.fillText(ch, x, y);
+                    }
+                    ctx.restore();
+                }
             }
         }
     }
 
     // 100 % celebration: central flash and sparks flying outwards.
-    Canvas {
-        id: celebrationCanvas
-
-        objectName: "celebrationCanvas"
+    Loader {
         anchors.fill: body
-        visible: root.celebrating
         z: 2
+        active: root.celebrating
+        sourceComponent: Component {
+            Canvas {
+                id: celebrationCanvas
 
-        onVisibleChanged: if (visible) requestPaint()
+                objectName: "celebrationCanvas"
+                anchors.fill: parent
+                visible: root.celebrating
+                z: 2
+                Component.onCompleted: requestPaint()
 
-        Timer {
-            interval: 40
-            repeat: true
-            running: celebrationCanvas.visible
-            onTriggered: {
-                root.celebrationProgress += 0.030;
-                if (root.celebrationProgress >= 1) {
-                    root.celebrating = false;
-                    root.celebrationProgress = 0;
-                } else {
-                    celebrationCanvas.requestPaint();
+                onVisibleChanged: if (visible) requestPaint()
+
+                Timer {
+                    interval: 40
+                    repeat: true
+                    running: celebrationCanvas.visible
+                    onTriggered: {
+                        root.celebrationProgress += 0.030;
+                        if (root.celebrationProgress >= 1) {
+                            root.celebrating = false;
+                            root.celebrationProgress = 0;
+                        } else {
+                                            }
+                    }
                 }
-            }
-        }
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            if (!root.celebrating || width <= 2 || height <= 2) {
-                return;
-            }
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    if (!root.celebrating || width <= 2 || height <= 2) {
+                        return;
+                    }
 
-            const progress = Math.max(0, Math.min(1, root.celebrationProgress));
-            const cx = width / 2;
-            const cy = height / 2;
-            const minSide = Math.min(width, height);
-            const maxSide = Math.max(width, height);
-            const fade = 1 - progress;
+                    const progress = Math.max(0, Math.min(1, root.celebrationProgress));
+                    const cx = width / 2;
+                    const cy = height / 2;
+                    const minSide = Math.min(width, height);
+                    const maxSide = Math.max(width, height);
+                    const fade = 1 - progress;
 
-            // 1) Lit outline: noticeable from the very first frame even on
-            // small batteries, because it runs around the whole perimeter.
-            const inset = Math.max(0.8, body.lineWidth / 2);
-            const ringFade = Math.max(0, 1 - progress * 2.2);
-            if (ringFade > 0) {
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.62 * ringFade);
-                ctx.lineWidth = Math.max(1.2, body.lineWidth * 1.5);
-                ctx.beginPath();
-                ctx.roundedRect(inset, inset, width - inset * 2, height - inset * 2,
-                    Math.max(1, body.radius - inset), Math.max(1, body.radius - inset));
-                ctx.stroke();
-            }
+                    // 1) Lit outline: noticeable from the very first frame even on
+                    // small batteries, because it runs around the whole perimeter.
+                    const inset = Math.max(0.8, body.lineWidth / 2);
+                    const ringFade = Math.max(0, 1 - progress * 2.2);
+                    if (ringFade > 0) {
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.62 * ringFade);
+                        ctx.lineWidth = Math.max(1.2, body.lineWidth * 1.5);
+                        ctx.beginPath();
+                        ctx.roundedRect(inset, inset, width - inset * 2, height - inset * 2,
+                            Math.max(1, body.radius - inset), Math.max(1, body.radius - inset));
+                        ctx.stroke();
+                    }
 
-            // 2) Light wash: a large flash covering most of the body from
-            // the very first instant, fading out gradually.
-            const flashRadius = Math.max(minSide * 0.42, maxSide * (0.34 + progress * 0.62));
-            const flash = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashRadius);
-            flash.addColorStop(0, Qt.rgba(1, 1, 1, 0.68 * fade));
-            flash.addColorStop(0.45, Qt.rgba(1, 1, 1, 0.38 * fade));
-            flash.addColorStop(0.78, Qt.rgba(root.tintColor.r, root.tintColor.g,
-                root.tintColor.b, 0.30 * fade));
-            flash.addColorStop(1, Qt.rgba(root.tintColor.r, root.tintColor.g,
-                root.tintColor.b, 0));
-            ctx.fillStyle = flash;
-            ctx.beginPath();
-            ctx.arc(cx, cy, flashRadius, 0, Math.PI * 2);
-            ctx.fill();
+                    // 2) Light wash: a large flash covering most of the body from
+                    // the very first instant, fading out gradually.
+                    const flashRadius = Math.max(minSide * 0.42, maxSide * (0.34 + progress * 0.62));
+                    const flash = ctx.createRadialGradient(cx, cy, 0, cx, cy, flashRadius);
+                    flash.addColorStop(0, Qt.rgba(1, 1, 1, 0.68 * fade));
+                    flash.addColorStop(0.45, Qt.rgba(1, 1, 1, 0.38 * fade));
+                    flash.addColorStop(0.78, Qt.rgba(root.tintColor.r, root.tintColor.g,
+                        root.tintColor.b, 0.30 * fade));
+                    flash.addColorStop(1, Qt.rgba(root.tintColor.r, root.tintColor.g,
+                        root.tintColor.b, 0));
+                    ctx.fillStyle = flash;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, flashRadius, 0, Math.PI * 2);
+                    ctx.fill();
 
-            // 3) Shockwave: a ring expanding from the center and fading out.
-            const waveT = Math.min(1, progress / 0.62);
-            if (waveT < 1) {
-                const waveRadius = minSide * (0.20 + waveT * 1.15);
-                const waveFade = (1 - waveT) * (1 - waveT);
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.70 * waveFade);
-                ctx.lineWidth = Math.max(1.1, minSide * 0.09 * (1 - waveT) + 0.6);
-                ctx.beginPath();
-                ctx.arc(cx, cy, waveRadius, 0, Math.PI * 2);
-                ctx.stroke();
-            }
+                    // 3) Shockwave: a ring expanding from the center and fading out.
+                    const waveT = Math.min(1, progress / 0.62);
+                    if (waveT < 1) {
+                        const waveRadius = minSide * (0.20 + waveT * 1.15);
+                        const waveFade = (1 - waveT) * (1 - waveT);
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.70 * waveFade);
+                        ctx.lineWidth = Math.max(1.1, minSide * 0.09 * (1 - waveT) + 0.6);
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, waveRadius, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
 
-            // 4) Radial sparks with trails.
-            const count = 18;
-            const reach = maxSide * 0.62;
-            ctx.lineCap = "round";
-            for (let i = 0; i < count; i++) {
-                const angle = (i / count) * Math.PI * 2 + 0.18;
-                const speed = 0.55 + ((i * 37) % 100) / 160;
-                const distance = progress * reach * speed;
-                const px = cx + Math.cos(angle) * distance;
-                const py = cy + Math.sin(angle) * distance * 0.72;
-                const tail = Math.max(1.4, minSide * 0.16 * (1 - progress * 0.5));
-                const tx = px - Math.cos(angle) * tail;
-                const ty = py - Math.sin(angle) * tail * 0.72;
-                const alpha = Math.max(0, fade * (0.45 + 0.45 * ((i * 13) % 100) / 100));
+                    // 4) Radial sparks with trails.
+                    const count = 18;
+                    const reach = maxSide * 0.62;
+                    ctx.lineCap = "round";
+                    for (let i = 0; i < count; i++) {
+                        const angle = (i / count) * Math.PI * 2 + 0.18;
+                        const speed = 0.55 + ((i * 37) % 100) / 160;
+                        const distance = progress * reach * speed;
+                        const px = cx + Math.cos(angle) * distance;
+                        const py = cy + Math.sin(angle) * distance * 0.72;
+                        const tail = Math.max(1.4, minSide * 0.16 * (1 - progress * 0.5));
+                        const tx = px - Math.cos(angle) * tail;
+                        const ty = py - Math.sin(angle) * tail * 0.72;
+                        const alpha = Math.max(0, fade * (0.45 + 0.45 * ((i * 13) % 100) / 100));
 
-                ctx.strokeStyle = Qt.rgba(1, 1, 1, alpha);
-                ctx.lineWidth = Math.max(0.9, minSide * 0.05);
-                ctx.beginPath();
-                ctx.moveTo(tx, ty);
-                ctx.lineTo(px, py);
-                ctx.stroke();
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, alpha);
+                        ctx.lineWidth = Math.max(0.9, minSide * 0.05);
+                        ctx.beginPath();
+                        ctx.moveTo(tx, ty);
+                        ctx.lineTo(px, py);
+                        ctx.stroke();
 
-                // Bright tip of the spark.
-                ctx.fillStyle = Qt.rgba(1, 1, 1, Math.min(1, alpha * 1.25));
-                ctx.beginPath();
-                ctx.arc(px, py, Math.max(0.8, minSide * 0.035), 0, Math.PI * 2);
-                ctx.fill();
+                        // Bright tip of the spark.
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, Math.min(1, alpha * 1.25));
+                        ctx.beginPath();
+                        ctx.arc(px, py, Math.max(0.8, minSide * 0.035), 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
             }
         }
     }
