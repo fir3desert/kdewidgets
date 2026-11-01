@@ -4,26 +4,26 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/2.0
                           http://www.kde.org/standards/kcfg/2.0/kcfg.xsd">
     <kcfgfile name=""/>
-
     <group name="General">
+        <entry name="colorize" type="Bool">
+            <default>true</default>
+        </entry>
         <entry name="warningLevel" type="Int">
-            <label>Percentage below which the battery is shown in the warning color</label>
             <default>20</default>
         </entry>
         <entry name="criticalLevel" type="Int">
-            <label>Percentage below which the battery is shown in the critical color</label>
             <default>10</default>
         </entry>
-        <entry name="colorize" type="Bool">
-            <label>Use colors depending on the state (orange below the warning threshold, red below the critical one and green while charging)</label>
+        <entry name="chargingAnimation" type="Bool">
             <default>true</default>
         </entry>
-        <entry name="chargingAnimation" type="Bool">
-            <label>Enable animation while charging</label>
+        <entry name="animateWhenFull" type="Bool">
             <default>true</default>
+        </entry>
+        <entry name="previewAnimation" type="Bool">
+            <default>false</default>
         </entry>
         <entry name="chargingAnimationStyle" type="String">
-            <label>Charging animation style</label>
             <default>sweep</default>
         </entry>
     </group>
