@@ -1,8 +1,9 @@
 # Battery
 
 Stable edition of the KDE Plasma 6 battery widget. It has the same features
-and animation catalog as [Battery (testing)](../org.kde.fir3.batterydisplay-testing/README.md),
-but it always uses live battery data: there is no simulated preview mode.
+and animation catalog as [Battery (testing)](../WidgetTesting/org.kde.fir3.batterydisplay-testing/README.md),
+but it always uses live battery data. A **Preview animation** switch in Settings
+forces the charging animation on so you can try styles without plugging in the charger.
 
 The panel shows a drawn battery with the percentage inside. Clicking it opens
 a summary with the state, remaining time, battery health and per-device power
@@ -25,6 +26,26 @@ The selector groups all 25 styles into families:
 The 100 % celebration is automatic and is skipped when charging animations
 are disabled.
 
+## What's new in 1.3.0
+
+- Charging detection no longer depends on the QML enum (numeric fallback).
+- Only the canvas of the selected animation exists (one `Loader` each), and
+  animations stop while the item is hidden or desktop animations are off.
+- Unknown or empty style values fall back to Sweep.
+- Texts go through `i18n()`; a Spanish translation is included
+  (`po/es.po`, compiled into `contents/locale/es/LC_MESSAGES/`).
+- "Idle" is now "Plugged in, not charging" (e.g. a charge limit is reached).
+- Family/style selectors stay in sync after changing either one.
+
+## Languages
+
+Translations: Spanish, Catalan, Basque, Galician, French, German, Portuguese,
+Italian and Japanese (`po/*.po`, compiled into
+`contents/locale/<lang>/LC_MESSAGES/`). They were machine-written; corrections
+are welcome. To add a language, copy `po/es.po` to `po/<lang>.po`, translate the
+`msgstr` lines and compile it with `msgfmt` into the matching `contents/locale`
+folder.
+
 ## Install
 
 From this directory:
@@ -36,7 +57,7 @@ From this directory:
 The script installs the widget to:
 
 ```text
-~/.local/share/plasma/plasmoids/org.kde.fir3.batterydisplay-original
+~/.local/share/plasma/plasmoids/org.kde.fir3.batterydisplay
 ```
 
 It restarts `plasmashell` when possible so the widget is available; if it
@@ -92,10 +113,22 @@ contents/
     └── main.qml            # applet, panel and popup
 ```
 
+## Troubleshooting
+
+If the animation does not start while charging, watch the state the widget
+receives:
+
+```bash
+journalctl --user -f | grep fir3.batterydisplay
+```
+
+Each line shows `chargeState` (1 = charging), `percent`, `pluggedIn` and
+`charging`.
+
 ## Uninstall
 
 ```bash
-rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids/org.kde.fir3.batterydisplay-original"
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids/org.kde.fir3.batterydisplay"
 ```
 
 Then remove the widget from the panel and restart `plasmashell` if it still
