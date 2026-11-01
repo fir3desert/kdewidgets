@@ -1,9 +1,10 @@
-import QtQuick 2.0
-import org.kde.plasma.configuration 2.0 as PlasmaConfig
+import QtQuick
+import org.kde.plasma.configuration
 
-PlasmaConfig.ConfigModel {
-    PlasmaConfig.ConfigCategory {
+ConfigModel {
+    ConfigCategory {
         name: i18n("General")
         icon: "preferences-system-power-management"
         source: "configGeneral.qml"
     }
+}
